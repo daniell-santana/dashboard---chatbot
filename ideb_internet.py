@@ -30,7 +30,7 @@ def load_escolas():
 
 @st.cache_data
 def load_distritos_shapefile():
-    shp_path = r"C:\python_testes\LAYER_DISTRITO\DEINFO_DISTRITO.shp"
+    shp_path = "LAYER_DISTRITO/DEINFO_DISTRITO.shp"  # Caminho relativo
     gdf = gpd.read_file(shp_path)
     if gdf.crs is None or gdf.crs.to_epsg() != 29193:
         gdf.set_crs(epsg=29193, inplace=True)
