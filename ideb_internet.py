@@ -214,8 +214,8 @@ fig = px.bar(
 
 # Definir exibição inicial (30 escolas) e permitir rolagem horizontal
 fig.update_layout(
-    plot_bgcolor='black',  # Fundo preto
-    paper_bgcolor='black',  # Fundo preto
+    plot_bgcolor='#0e1118',  # Fundo preto
+    paper_bgcolor='#0e1118',  # Fundo preto
     font_color='white',  # Texto branco
     yaxis_title='Velocidade da Internet (Mbps)',  # Título do eixo Y
     xaxis_title='Escola',  # Título do eixo X
