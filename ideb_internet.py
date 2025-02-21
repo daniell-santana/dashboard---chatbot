@@ -10,6 +10,7 @@ import plotly.express as px
 
 # Configurar o layout da página
 st.set_page_config(layout="wide", page_title="Velocidade de Internet nas Escolas SP")
+st.caption("Nota: Os dados aqui utilizados foram simulados. Não correspondem a realidade")
 
 #####################################
 # FUNÇÕES DE CARREGAMENTO DE DADOS  #
@@ -95,6 +96,25 @@ mask_adicional = (
 filtered_escolas = escolas[mask_speed & mask_cat & mask_adicional]
 st.sidebar.markdown(f"### Total de escolas filtradas: {len(filtered_escolas)}")
 
+# CSS para ajustar os iframes dos mapas e os títulos
+st.markdown(
+    '''
+    <style>
+    iframe {
+        width: 100% !important;
+        height: 600px !important;
+    }
+    h2 {
+        font-size: 20px !important;
+    }
+    h1 {
+        font-size: 28px !important;
+    }
+    </style>
+    ''',
+    unsafe_allow_html=True
+)
+
 ####################################
 # MAPAS INTERATIVOS
 ####################################
@@ -104,7 +124,7 @@ mapa_col1, mapa_col2 = st.columns(2)
 with mapa_col1:
     st.header("Localização das Escolas")
     mapa_escolas = folium.Map(location=[-23.5505, -46.6333], zoom_start=12,
-                              tiles='cartodb positron', width='100%', height='600px')
+                              tiles='cartodb positron') #, width='100%', height='600px'
     cluster = MarkerCluster().add_to(mapa_escolas)
     for _, row in filtered_escolas.iterrows():
         folium.CircleMarker(
@@ -132,10 +152,7 @@ with mapa_col2:
     mapa_distritos = folium.Map(
         location=[-23.5505, -46.6333], 
         zoom_start=12,
-        tiles='cartodb positron', 
-        width='100%', 
-        height='600px'
-    )
+        tiles='cartodb positron') #width='100%', height='600px'
     # Função para estilizar os distritos no mapa
     def style_function(feature):
         if "selected_district" in st.session_state and feature['properties']['NOME_DIST'] == st.session_state["selected_district"]:
