@@ -196,7 +196,7 @@ with mapa_col1:
     st.header("Localização das Escolas")
     mapa_escolas = folium.Map(location=[-23.5505, -46.6333], zoom_start=12,
                               tiles='cartodb positron') #, width='100%', height='600px'
-    cluster = MarkerCluster(options={'disableClusteringAtZoom': 16}).add_to(mapa_escolas)
+    cluster = MarkerCluster().add_to(mapa_escolas)
     for _, row in filtered_escolas.iterrows():
         folium.CircleMarker(
             location=[row['LATITUDE'], row['LONGITUDE']],
