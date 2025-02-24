@@ -10,7 +10,78 @@ import plotly.express as px
 
 # Configurar o layout da página
 st.set_page_config(layout="wide", page_title="Velocidade de Internet nas Escolas SP")
+
+# --------------------------------------------------------------------
+# INTERRUPTOR DE TEMA COM ÍCONES (lado a lado)
+# --------------------------------------------------------------------
+col1, col2, col3 = st.columns([8, 8, 2])
+with col3:
+    # Interruptor de tema com ícones
+    tema = st.radio("", ["☀️", "🌙"], index=0, horizontal=True)
+
+# Definir as variáveis de cores conforme o tema selecionado
+if tema == "🌙":
+    # Modo Escuro
+    plot_bgcolor = "#0e1118"    # Fundo dos gráficos
+    paper_bgcolor = "#0e1118"   # Fundo externo dos gráficos
+    font_color = "white"        # Cor dos textos, legendas e números
+    sidebar_bg = "#383838"      # Fundo da sidebar
+else:
+    # Modo Claro
+    plot_bgcolor = "#ffffff"
+    paper_bgcolor = "#ffffff"
+    font_color = "#000000"      # Textos do gráfico agora ficam pretos
+    sidebar_bg = "#fff9f9"      # Fundo off-white na sidebar
+
+# Injetar CSS para alterar o fundo da aplicação e da sidebar
+st.markdown(
+    f"""
+    <style>
+    /* Definir cor de fundo e texto da aplicação */
+    .stApp {{
+        background-color: {plot_bgcolor} !important;
+        color: {font_color} !important;
+    }}
+    /* Alterar fundo da sidebar */
+    [data-testid="stSidebar"] {{
+        background-color: {sidebar_bg} !important;
+    }}
+    /* Alterar cor dos textos na sidebar */
+    [data-testid="stSidebar"] * {{
+        color: {font_color} !important;
+    }}
+    /* Alterar cor dos labels, escalas e legendas do gráfico */
+    .plotly .main-svg {{
+        color: {font_color} !important;
+        fill: {font_color} !important;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# CSS para alterar a cor da barra superior ("Running")
+# Definir o background do header conforme o tema
+if tema == "🌙":
+    header_bg = "#383838"  # Modo escuro
+else:
+    header_bg = "#fff9f9"  # Modo claro
+
+# Injetar CSS para alterar a cor do header com base no tema
+st.markdown(
+    f"""
+    <style>
+    [data-testid="stHeader"] {{
+        background-color: {header_bg};
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Exibir a nota logo abaixo do título com um componente nativo
 st.caption("Nota: Os dados aqui utilizados foram simulados. Não correspondem a realidade")
+# --------------------------------------------------------------------
 
 #####################################
 # FUNÇÕES DE CARREGAMENTO DE DADOS  #
@@ -125,7 +196,7 @@ with mapa_col1:
     st.header("Localização das Escolas")
     mapa_escolas = folium.Map(location=[-23.5505, -46.6333], zoom_start=12,
                               tiles='cartodb positron') #, width='100%', height='600px'
-    cluster = MarkerCluster().add_to(mapa_escolas)
+    cluster = MarkerCluster(options={'disableClusteringAtZoom': 16}).add_to(mapa_escolas)
     for _, row in filtered_escolas.iterrows():
         folium.CircleMarker(
             location=[row['LATITUDE'], row['LONGITUDE']],
@@ -212,29 +283,40 @@ fig = px.bar(
     labels={'Velocidade_Internet': 'Velocidade da Internet (Mbps)', 'NOMES': 'Escola'}
 )
 
-# Definir exibição inicial (30 escolas) e permitir rolagem horizontal
 fig.update_layout(
-    plot_bgcolor='#0e1118',  # Fundo preto
-    paper_bgcolor='#0e1118',  # Fundo preto
-    font_color='white',  # Texto branco
-    yaxis_title='Velocidade da Internet (Mbps)',  # Título do eixo Y
-    xaxis_title='Escola',  # Título do eixo X
+    plot_bgcolor=plot_bgcolor,
+    paper_bgcolor=paper_bgcolor,
+    font=dict(color=font_color),  # Ajusta a cor de todos os textos do gráfico
     xaxis=dict(
-        categoryorder='total descending',  # Ordenação das escolas
-        tickangle=45,  # Inclina os rótulos para melhor visualização
-        tickfont=dict(size=10),  # Ajusta o tamanho dos nomes das escolas
-        automargin=True,  # Margens automáticas
-        range=[0, 30],  # Mostra apenas 30 escolas por vez e permite rolagem
-        rangeslider=dict(visible=True),  # Ativar barra de rolagem horizontal
-        type="category"  # Permite rolagem horizontal
+        tickfont=dict(color=font_color),
+        title=dict(text="Escola", font=dict(color=font_color)),  # Correção na cor do título do eixo X
+        rangeslider=dict(visible=True)  # Adiciona a barra de rolagem no eixo X
     ),
-    height=900,  # Altura do gráfico
-    width=1000,  # Largura maior para permitir rolagem
-    margin=dict(l=50, r=50, t=50, b=150)  # Ajusta margens
+    yaxis=dict(
+        tickfont=dict(color=font_color),
+        title=dict(text="Velocidade da Internet (Mbps)", font=dict(color=font_color))  # Correção na cor do título do eixo Y
+    ),
+    legend=dict(
+        font=dict(color=font_color),
+        title=dict(font=dict(color=font_color))  # Corrige a cor do título da legenda
+    ),
+    coloraxis=dict(
+        colorbar=dict(
+            title=dict(font=dict(color=font_color)),  # Corrige a cor do título do degradê
+            tickfont=dict(color=font_color)  # Corrige a cor dos números do degradê
+        )
+    ) if "coloraxis" in fig.to_dict()["layout"] else {},
+    height=900,
+    width=900,
+    margin=dict(l=50, r=50, t=50, b=150)
 )
 
 # Ajustar a espessura das barras
-fig.update_traces(marker=dict(line=dict(width=0.7, color='gray')))
+fig.update_traces(
+    marker=dict(line=dict(width=1, color='gray')),
+    hovertemplate='%{x}<br>Velocidade: %{y:.3f} Mbps<extra></extra>',
+    texttemplate='%{y:.3f}'
+)
 
 # Exibir o gráfico no Streamlit
 st.plotly_chart(fig, use_container_width=True)
