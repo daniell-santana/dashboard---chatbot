@@ -262,27 +262,25 @@ with mapa_col2:
     folium_static(mapa_distritos)
 
 ####################################
-# GRÁFICO DE BARRAS HORIZONTAL INTERATIVO
+# GRÁFICO DE DISPERSSÃO ESCOLAS
 ####################################
 st.header("Velocidade de Internet por Escola")
 
-# Ordenar escolas por velocidade (maior para menor) e remover duplicatas
-filtered_escolas = (
-    filtered_escolas.groupby('NOMES', as_index=False)['Velocidade_Internet'].mean()
-    .sort_values('Velocidade_Internet', ascending=False)
-)
+# Ordenar as escolas por velocidade de internet (crescente)
+filtered_escolas = filtered_escolas.sort_values('Velocidade_Internet', ascending=True)
 
-# Criar gráfico de barras com cores em degradê vermelho
-fig = px.bar(
+# Criar gráfico de dispersão
+fig = px.scatter(
     filtered_escolas,
-    y='Velocidade_Internet',  # Eixo Y: Velocidade da Internet
     x='NOMES',  # Eixo X: Nome das Escolas
-    orientation='v',  # Barras verticais
-    color='Velocidade_Internet',  # Definir cor pelo valor da velocidade
+    y='Velocidade_Internet',  # Eixo Y: Velocidade da Internet
+    size='Velocidade_Internet',  # Tamanho do ponto baseado na velocidade
+    color='Velocidade_Internet',  # Cor do ponto baseado na velocidade
     color_continuous_scale='Reds',  # Degradê vermelho escuro → claro
     labels={'Velocidade_Internet': 'Velocidade da Internet (Mbps)', 'NOMES': 'Escola'}
 )
 
+# Ajustar layout do gráfico
 fig.update_layout(
     plot_bgcolor=plot_bgcolor,
     paper_bgcolor=paper_bgcolor,
@@ -290,7 +288,7 @@ fig.update_layout(
     xaxis=dict(
         tickfont=dict(color=font_color),
         title=dict(text="Escola", font=dict(color=font_color)),  # Correção na cor do título do eixo X
-        rangeslider=dict(visible=True)  # Adiciona a barra de rolagem no eixo X
+        categoryorder='total ascending'  # Ordenar eixo X em ordem crescente
     ),
     yaxis=dict(
         tickfont=dict(color=font_color),
@@ -302,20 +300,23 @@ fig.update_layout(
     ),
     coloraxis=dict(
         colorbar=dict(
-            title=dict(font=dict(color=font_color)),  # Corrige a cor do título do degradê
-            tickfont=dict(color=font_color)  # Corrige a cor dos números do degradê
+            title=dict(text="Velocidade (Mbps)", font=dict(color=font_color)),  # Título da escala
+            title_side='right',  # Posiciona o título da escala na vertical
+            orientation='v',  # Orientação vertical da barra de cores
+            yanchor='middle',  # Centraliza o título verticalmente
+            y=0.5,  # Ajusta a posição do título
+            tickfont=dict(color=font_color)  # Cor dos valores da escala
         )
-    ) if "coloraxis" in fig.to_dict()["layout"] else {},
-    height=900,
+    ),
+    height=700,
     width=900,
     margin=dict(l=50, r=50, t=50, b=150)
 )
 
-# Ajustar a espessura das barras
+# Ajustar a aparência dos pontos
 fig.update_traces(
     marker=dict(line=dict(width=1, color='gray')),
     hovertemplate='%{x}<br>Velocidade: %{y:.3f} Mbps<extra></extra>',
-    texttemplate='%{y:.3f}'
 )
 
 # Exibir o gráfico no Streamlit
