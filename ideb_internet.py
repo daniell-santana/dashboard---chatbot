@@ -12,14 +12,100 @@ import plotly.express as px
 st.set_page_config(layout="wide", page_title="Velocidade de Internet nas Escolas SP")
 
 # --------------------------------------------------------------------
-# INTERRUPTOR DE TEMA COM ÍCONES (lado a lado)
+# TOGGLE SWITCH MODERNO (substitui o radio antigo)
 # --------------------------------------------------------------------
 col1, col2, col3 = st.columns([8, 8, 2])
 with col3:
-    # Interruptor de tema com ícones
-    tema = st.radio("", ["☀️", "🌙"], index=0, horizontal=True)
+    tema = st.radio(
+        "", 
+        ["☀️", "🌙"], 
+        index=0, 
+        horizontal=True, 
+        label_visibility="collapsed"  # Esconde o label padrão
+    )
 
-# Definir as variáveis de cores conforme o tema selecionado
+    # CSS para estilizar o toggle switch
+    st.markdown(
+        """
+        <style>
+        /* Esconde os radio buttons padrão */
+        div[role=radiogroup] > label > div:first-child {
+            display: none;
+        }
+
+        /* Estilo do container do toggle (versão horizontal) */
+        div[role=radiogroup] {
+            background-color: #555;
+            border-radius: 20px;
+            padding: 2px;  /* Reduz o padding */
+            display: inline-flex;
+            gap: 0;
+            position: relative;
+            width: 80px;  /* Largura total do toggle */
+            height: 30px;  /* Altura total do toggle */
+            align-items: center;  /* Centraliza os ícones verticalmente */
+        }
+
+        /* Estilo dos botões (sol e lua) */
+        div[role=radiogroup] label {
+            margin: 0;
+            padding: 4px 12px;  /* Ajusta o padding dos ícones */
+            cursor: pointer;
+            z-index: 1;
+            transition: color 0.3s;
+            font-size: 14px;  /* Tamanho dos ícones */
+            display: flex;
+            align-items: center;  /* Centraliza os ícones verticalmente */
+            justify-content: center;  /* Centraliza os ícones horizontalmente */
+            width: 50%;  /* Cada ícone ocupa metade do container */
+        }
+
+        /* Ajuste específico para o ícone do sol (alinhar à esquerda) */
+        div[role=radiogroup] label:first-child {
+            padding-left: 4px;  /* Alinha o sol à esquerda */
+            justify-content: flex-start;  /* Alinha o conteúdo à esquerda */
+        }
+
+        /* Ajuste específico para o ícone da lua (alinhar à direita) */
+        div[role=radiogroup] label:last-child {
+            padding-right: 4px;  /* Alinha a lua à direita */
+            justify-content: flex-end;  /* Alinha o conteúdo à direita */
+        }
+
+        /* Efeito de slider (parte deslizante) */
+        div[role=radiogroup]:after {
+            content: "";
+            position: absolute;
+            width: 42px;  /* Largura do slider */
+            height: 34px;  /* Altura do slider */
+            background-color: #4CAF50;  /* Cor do slider */
+            top: 3px;
+            left: 3px;
+            border-radius: 16px;
+            transition: transform 0.3s;
+        }
+
+        /* Movimento do slider baseado na seleção */
+        input[value="☀️"]:checked ~ div[role=radiogroup]:after {
+            transform: translateX(0);
+        }
+
+        input[value="🌙"]:checked ~ div[role=radiogroup]:after {
+            transform: translateX(38px);  /* Ajuste para o movimento */
+        }
+
+        /* Cor do texto quando selecionado */
+        input:checked + label {
+            color: white !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+# --------------------------------------------------------------------
+# DEFINIR AS VARIÁVEIS DE CORES CONFORME O TEMA SELECIONADO
+# --------------------------------------------------------------------
 if tema == "🌙":
     # Modo Escuro
     plot_bgcolor = "#0e1118"    # Fundo dos gráficos
@@ -33,7 +119,24 @@ else:
     font_color = "#000000"      # Textos do gráfico agora ficam pretos
     sidebar_bg = "#fff9f9"      # Fundo off-white na sidebar
 
-# Injetar CSS para alterar o fundo da aplicação e da sidebar
+# Atualizar cores do toggle com base no tema
+st.markdown(
+    f"""
+    <style>
+    div[role=radiogroup] {{
+        background-color: {sidebar_bg if tema == "🌙" else "#f0f0f0"};
+    }}
+    div[role=radiogroup]:after {{
+        background-color: {font_color};
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# --------------------------------------------------------------------
+# INJETAR CSS PARA ALTERAR O FUNDO DA APLICAÇÃO E DA SIDEBAR
+# --------------------------------------------------------------------
 st.markdown(
     f"""
     <style>
@@ -60,8 +163,9 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# CSS para alterar a cor da barra superior ("Running")
-# Definir o background do header conforme o tema
+# --------------------------------------------------------------------
+# CSS PARA ALTERAR A COR DA BARRA SUPERIOR ("Running")
+# --------------------------------------------------------------------
 if tema == "🌙":
     header_bg = "#383838"  # Modo escuro
 else:
@@ -78,6 +182,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 # Exibir a nota logo abaixo do título com um componente nativo
 st.caption("Nota: Os dados aqui utilizados foram simulados. Não correspondem a realidade")
