@@ -10,7 +10,6 @@ import plotly.express as px
 
 # Configurar o layout da página
 st.set_page_config(layout="wide", page_title="Velocidade de Internet nas Escolas SP")
-
 # --------------------------------------------------------------------
 # TOGGLE SWITCH MODERNO (substitui o radio antigo)
 # --------------------------------------------------------------------
@@ -538,6 +537,3 @@ folium.GeoJson(
     tooltip=folium.GeoJsonTooltip(fields=["NOME_DIST"], aliases=["Distrito: "]),
     on_click=on_click_distrito
 ).add_to(mapa_distritos)
-        folium.Marker([escola_selecionada['LATITUDE'], escola_selecionada['LONGITUDE']],
-                      popup="Escola Selecionada").add_to(mapa_escolas)
-        folium_static(mapa_escolas)
