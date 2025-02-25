@@ -367,22 +367,23 @@ with mapa_col2:
     folium_static(mapa_distritos)
 
 ####################################
-# GRÁFICO DE DISPERSSÃO ESCOLAS
+# GRÁFICO DE DISPERSÃO ESCOLAS 
 ####################################
-st.header("Velocidade de Internet por Escola")
+st.header("Velocidade de Internet por IDEB")
 
-# Ordenar as escolas por velocidade de internet (crescente)
-filtered_escolas = filtered_escolas.sort_values('Velocidade_Internet', ascending=True)
+# Ordenar as escolas por IDEB (crescente)
+filtered_escolas = filtered_escolas.sort_values('IDEB', ascending=True)
 
 # Criar gráfico de dispersão
 fig = px.scatter(
     filtered_escolas,
-    x='NOMES',  # Eixo X: Nome das Escolas
+    x='IDEB',  # Eixo X: IDEB das Escolas
     y='Velocidade_Internet',  # Eixo Y: Velocidade da Internet
     size='Velocidade_Internet',  # Tamanho do ponto baseado na velocidade
     color='Velocidade_Internet',  # Cor do ponto baseado na velocidade
     color_continuous_scale='Reds',  # Degradê vermelho escuro → claro
-    labels={'Velocidade_Internet': 'Velocidade da Internet (Mbps)', 'NOMES': 'Escola'}
+    labels={'Velocidade_Internet': 'Velocidade da Internet (Mbps)', 'IDEB': 'IDEB'},
+    hover_name='NOMES' if 'NOMES' in filtered_escolas.columns else None  # Exibe o nome da escola ao passar o mouse
 )
 
 # Ajustar layout do gráfico
@@ -392,26 +393,23 @@ fig.update_layout(
     font=dict(color=font_color),  # Ajusta a cor de todos os textos do gráfico
     xaxis=dict(
         tickfont=dict(color=font_color),
-        title=dict(text="Escola", font=dict(color=font_color)),  # Correção na cor do título do eixo X
-        categoryorder='total ascending'  # Ordenar eixo X em ordem crescente
+        title=dict(text="IDEB", font=dict(color=font_color)),  # Título do eixo X
     ),
     yaxis=dict(
         tickfont=dict(color=font_color),
-        title=dict(text="Velocidade da Internet (Mbps)", font=dict(color=font_color))  # Correção na cor do título do eixo Y
+        title=dict(text="Velocidade da Internet (Mbps)", font=dict(color=font_color))  # Título do eixo Y
     ),
     legend=dict(
         font=dict(color=font_color),
-        title=dict(font=dict(color=font_color))  # Corrige a cor do título da legenda
+        title=dict(text="Legenda", font=dict(color=font_color))  # Corrige a cor do título da legenda
     ),
-    coloraxis=dict(
-        colorbar=dict(
-            title=dict(text="Velocidade (Mbps)", font=dict(color=font_color)),  # Título da escala
-            title_side='right',  # Posiciona o título da escala na vertical
-            orientation='v',  # Orientação vertical da barra de cores
-            yanchor='middle',  # Centraliza o título verticalmente
-            y=0.5,  # Ajusta a posição do título
-            tickfont=dict(color=font_color)  # Cor dos valores da escala
-        )
+    coloraxis_colorbar=dict(  # Corrigindo a chave
+        title=dict(text="Velocidade (Mbps)", font=dict(color=font_color)),  # Título da escala
+        title_side='right',  # Posiciona o título da escala na vertical
+        orientation='v',  # Orientação vertical da barra de cores
+        yanchor='middle',  # Centraliza o título verticalmente
+        y=0.5,  # Ajusta a posição do título
+        tickfont=dict(color=font_color)  # Cor dos valores da escala
     ),
     height=700,
     width=900,
@@ -421,7 +419,7 @@ fig.update_layout(
 # Ajustar a aparência dos pontos
 fig.update_traces(
     marker=dict(line=dict(width=1, color='gray')),
-    hovertemplate='%{x}<br>Velocidade: %{y:.3f} Mbps<extra></extra>',
+    hovertemplate='<b>%{hovertext}</b><br>IDEB: %{x:.2f}<br>Velocidade: %{y:.2f} Mbps<extra></extra>',
 )
 
 # Exibir o gráfico no Streamlit
@@ -456,6 +454,9 @@ if distrito:
     escolas_no_distrito = filtered_escolas[filtered_escolas['DISTRITO'] == distrito_selecionado]
     if not escolas_no_distrito.empty:
         escola_selecionada = escolas_no_distrito.iloc[0]
+        folium.Marker([escola_selecionada['LATITUDE'], escola_selecionada['LONGITUDE']],
+                      popup="Escola Selecionada").add_to(mapa_escolas)
+        folium_static(mapa_escolas)
         folium.Marker([escola_selecionada['LATITUDE'], escola_selecionada['LONGITUDE']],
                       popup="Escola Selecionada").add_to(mapa_escolas)
         folium_static(mapa_escolas)
