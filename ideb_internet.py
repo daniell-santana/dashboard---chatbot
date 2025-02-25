@@ -225,12 +225,17 @@ distritos_gdf = load_distritos_shapefile()
 # FILTRAGEM E WIDGETS NA BARRA LATERAL
 ####################################
 st.sidebar.header("Filtros de Velocidade de Internet")
-min_speed, max_speed = escolas['Velocidade_Internet'].min(), escolas['Velocidade_Internet'].max()
-speed_range = st.sidebar.slider("Selecione a faixa de Velocidade (Mbps)",
-                                min_speed, max_speed, (min_speed, max_speed), step=0.5)
 
-# Calcular os quartis para categorizar a velocidade
+# 1. Filtro de Velocidade (Slider)
+min_speed, max_speed = escolas['Velocidade_Internet'].min(), escolas['Velocidade_Internet'].max()
+speed_range = st.sidebar.slider(
+    "Selecione a faixa de Velocidade (Mbps)",
+    min_speed, max_speed, (min_speed, max_speed), step=0.5
+)
+
+# 2. Categorias de Velocidade (Calculadas a partir dos dados originais)
 q1, q2, q3 = np.percentile(escolas['Velocidade_Internet'], [25, 50, 75])
+# Cada categoria é definida com base na condição
 categoria_velocidade = {
     "Muito Baixa": escolas['Velocidade_Internet'] <= q1,
     "Baixa": (escolas['Velocidade_Internet'] > q1) & (escolas['Velocidade_Internet'] <= q2),
@@ -238,38 +243,97 @@ categoria_velocidade = {
     "Alta": escolas['Velocidade_Internet'] > q3
 }
 
-# Filtro de categorias de velocidade
 selected_categories = st.sidebar.multiselect(
     "Selecione as categorias de velocidade",
     options=["Muito Baixa", "Baixa", "Média", "Alta"],
     default=["Muito Baixa", "Baixa", "Média", "Alta"],
 )
 
-# Construir máscara para velocidade (slider) e para categorias
+# Máscara global (aplicando velocidade e categorias) – esta máscara será usada para restringir todas as opções
 mask_speed = escolas['Velocidade_Internet'].between(speed_range[0], speed_range[1])
-mask_cat = pd.Series(False, index=escolas.index)
-for cat in selected_categories:
-    mask_cat |= categoria_velocidade[cat]
 
-# Filtros adicionais
-dre = st.sidebar.multiselect("DRE", sorted(escolas['DRE'].unique()))
-subpref = st.sidebar.multiselect("Subprefeitura", sorted(escolas['SUBPREF'].unique()))
-tipoesc = st.sidebar.multiselect("Tipo de Escola", sorted(escolas['TIPOESC'].unique()))
-bairro = st.sidebar.multiselect("Bairro", sorted(escolas['BAIRRO'].unique()))
-distrito = st.sidebar.multiselect("Distrito", sorted(escolas['DISTRITO'].unique()))
-nome_escola = st.sidebar.multiselect("Nome da Escola", sorted(escolas['NOMES'].unique()))
+# Máscara de categorias de velocidade
+if not selected_categories:
+    # Se nenhuma categoria for selecionada, não aplicar filtro (todos os registros passam)
+    mask_cat = pd.Series(True, index=escolas.index)
+else:
+    mask_cat = pd.Series(False, index=escolas.index)
+    for cat in selected_categories:
+        if cat == "Muito Baixa":
+            mask_cat |= (escolas['Velocidade_Internet'] <= q1)
+        elif cat == "Baixa":
+            mask_cat |= ((escolas['Velocidade_Internet'] > q1) & (escolas['Velocidade_Internet'] <= q2))
+        elif cat == "Média":
+            mask_cat |= ((escolas['Velocidade_Internet'] > q2) & (escolas['Velocidade_Internet'] <= q3))
+        elif cat == "Alta":
+            mask_cat |= (escolas['Velocidade_Internet'] > q3)
 
-mask_adicional = (
-    (escolas['DRE'].isin(dre) if dre else np.ones(len(escolas), dtype=bool)) &
-    (escolas['SUBPREF'].isin(subpref) if subpref else np.ones(len(escolas), dtype=bool)) &
-    (escolas['TIPOESC'].isin(tipoesc) if tipoesc else np.ones(len(escolas), dtype=bool)) &
-    (escolas['BAIRRO'].isin(bairro) if bairro else np.ones(len(escolas), dtype=bool)) &
-    (escolas['DISTRITO'].isin(distrito) if distrito else np.ones(len(escolas), dtype=bool)) &
-    (escolas['NOMES'].isin(nome_escola) if nome_escola else np.ones(len(escolas), dtype=bool))
-)
+global_mask = mask_speed & mask_cat
 
-# Aplicar todos os filtros combinados
-filtered_escolas = escolas[mask_speed & mask_cat & mask_adicional]
+# Função auxiliar: retorna as opções disponíveis para a coluna 'col'
+# Aplicando a máscara global e, adicionalmente, filtrando pelos outros filtros já selecionados.
+def available_options(col, exclude_filter, current_filters):
+    mask = global_mask.copy()
+    # Para cada filtro (exceto o atual), se houver seleção, aplicar essa condição
+    for key, sel in current_filters.items():
+        if key != exclude_filter and sel:
+            mask &= escolas[key].isin(sel)
+    return sorted(escolas.loc[mask, col].unique())
+
+# Inicializar (ou obter) os valores atuais dos filtros interativos do session_state.
+# Se ainda não estiverem definidos, eles serão listas vazias.
+current_filters = {
+    "DRE": st.session_state.get("DRE", []),
+    "SUBPREF": st.session_state.get("SUBPREF", []),
+    "TIPOESC": st.session_state.get("TIPOESC", []),
+    "BAIRRO": st.session_state.get("BAIRRO", []),
+    "DISTRITO": st.session_state.get("DISTRITO", []),
+    "NOMES": st.session_state.get("NOMES", [])
+}
+
+# Calcular as opções disponíveis para cada filtro com base no global_mask e nos outros filtros:
+available_dre      = available_options("DRE", "DRE", current_filters)
+available_subpref  = available_options("SUBPREF", "SUBPREF", current_filters)
+available_tipoesc  = available_options("TIPOESC", "TIPOESC", current_filters)
+available_bairro   = available_options("BAIRRO", "BAIRRO", current_filters)
+available_distrito = available_options("DISTRITO", "DISTRITO", current_filters)
+available_nome     = available_options("NOMES", "NOMES", current_filters)
+
+# Criar os widgets de filtro com as opções calculadas e atualizar o session_state
+selected_dre = st.sidebar.multiselect("DRE", available_dre, default=current_filters["DRE"], key="DRE")
+selected_subpref = st.sidebar.multiselect("Subprefeitura", available_subpref, default=current_filters["SUBPREF"], key="SUBPREF")
+selected_tipoesc = st.sidebar.multiselect("Tipo de Escola", available_tipoesc, default=current_filters["TIPOESC"], key="TIPOESC")
+selected_bairro = st.sidebar.multiselect("Bairro", available_bairro, default=current_filters["BAIRRO"], key="BAIRRO")
+selected_distrito = st.sidebar.multiselect("Distrito", available_distrito, default=current_filters["DISTRITO"], key="DISTRITO")
+selected_nome = st.sidebar.multiselect("Nome da Escola", available_nome, default=current_filters["NOMES"], key="NOMES")
+
+# Atualiza o dicionário current_filters com as seleções atuais
+current_filters = {
+    "DRE": selected_dre,
+    "SUBPREF": selected_subpref,
+    "TIPOESC": selected_tipoesc,
+    "BAIRRO": selected_bairro,
+    "DISTRITO": selected_distrito,
+    "NOMES": selected_nome
+}
+
+# Construir a máscara final interativa combinando todos os filtros
+mask_interactive = global_mask.copy()
+if selected_dre:
+    mask_interactive &= escolas['DRE'].isin(selected_dre)
+if selected_subpref:
+    mask_interactive &= escolas['SUBPREF'].isin(selected_subpref)
+if selected_tipoesc:
+    mask_interactive &= escolas['TIPOESC'].isin(selected_tipoesc)
+if selected_bairro:
+    mask_interactive &= escolas['BAIRRO'].isin(selected_bairro)
+if selected_distrito:
+    mask_interactive &= escolas['DISTRITO'].isin(selected_distrito)
+if selected_nome:
+    mask_interactive &= escolas['NOMES'].isin(selected_nome)
+
+filtered_escolas = escolas[mask_interactive]
+
 st.sidebar.markdown(f"### Total de escolas filtradas: {len(filtered_escolas)}")
 
 # CSS para ajustar os iframes dos mapas e os títulos
@@ -299,9 +363,10 @@ mapa_col1, mapa_col2 = st.columns(2)
 # Mapa das Escolas
 with mapa_col1:
     st.header("Localização das Escolas")
-    mapa_escolas = folium.Map(location=[-23.5505, -46.6333], zoom_start=12,
-                              tiles='cartodb positron') #, width='100%', height='600px'
-    cluster = MarkerCluster().add_to(mapa_escolas)
+    mapa_escolas = folium.Map(location=[-23.5505, -46.6333], zoom_start=11, tiles='cartodb positron')
+    # Criando um cluster para os marcadores, com um raio máximo menor
+    cluster = MarkerCluster(options={'maxClusterRadius':20}).add_to(mapa_escolas)
+    # Adicionando os pontos únicos ao mapa
     for _, row in filtered_escolas.iterrows():
         folium.CircleMarker(
             location=[row['LATITUDE'], row['LONGITUDE']],
@@ -310,9 +375,14 @@ with mapa_col1:
             fill=True,
             fill_color='blue',
             fill_opacity=0.5,
-            popup=folium.Popup(f"{row['NOMES']}<br>IDEB: {row['IDEB']:.2f}<br>Velocidade: {row['Velocidade_Internet']:.2f} Mbps", max_width=300),
+            popup=folium.Popup(
+                f"{row['NOMES']}<br>IDEB: {row['IDEB']:.2f}<br>Velocidade: {row['Velocidade_Internet']:.2f} Mbps", 
+                max_width=300
+            ),
         ).add_to(cluster)
+    # Renderizando o mapa das escolas
     folium_static(mapa_escolas)
+
 # Mapa de Distritos
 with mapa_col2:
     st.header("Velocidade de Internet por Distrito")
@@ -323,15 +393,34 @@ with mapa_col2:
     # Preencher valores NaN com a média geral
     distritos_gdf['Velocidade_Internet'].fillna(distritos_gdf['Velocidade_Internet'].mean(), inplace=True)
     # Criar o colormap para representar a velocidade de internet
-    colormap = linear.Reds_09.scale(distritos_gdf['Velocidade_Internet'].min(), distritos_gdf['Velocidade_Internet'].max())
+    colormap = linear.Reds_09.scale(
+        distritos_gdf['Velocidade_Internet'].min(), 
+        distritos_gdf['Velocidade_Internet'].max()
+    )
     # Criar o mapa de distritos
     mapa_distritos = folium.Map(
         location=[-23.5505, -46.6333], 
-        zoom_start=12,
-        tiles='cartodb positron') #width='100%', height='600px'
-    # Função para estilizar os distritos no mapa
+        zoom_start=11,
+        tiles='cartodb positron'
+    )
+    
+    # Definir a função de estilo fora do contexto do mapa, mas dentro do mesmo bloco
     def style_function(feature):
-        if "selected_district" in st.session_state and feature['properties']['NOME_DIST'] == st.session_state["selected_district"]:
+        # Recupera os distritos selecionados diretamente
+        selected_distrito = st.session_state.get("DISTRITO", [])
+        # Recupera os bairros selecionados
+        selected_bairro = st.session_state.get("BAIRRO", [])
+        
+        # Se houver bairros selecionados, obtenha os distritos correspondentes
+        if selected_bairro:
+            # Supondo que cada bairro pertença a um único distrito
+            bairros_distritos = escolas[escolas['BAIRRO'].isin(selected_bairro)]['DISTRITO'].unique().tolist()
+        else:
+            bairros_distritos = []
+        
+        # Se o distrito do recurso estiver selecionado (diretamente ou via bairro), destaque-o
+        if (selected_distrito and feature['properties']['NOME_DIST'] in selected_distrito) or \
+           (bairros_distritos and feature['properties']['NOME_DIST'] in bairros_distritos):
             return {
                 'fillColor': colormap(feature['properties']['Velocidade_Internet']),
                 'color': 'black', 
@@ -345,6 +434,7 @@ with mapa_col2:
                 'weight': 0.5, 
                 'fillOpacity': 0.5
             }
+    
     # Adicionar distritos ao mapa com tooltip exibindo nome e velocidade média
     folium.GeoJson(
         distritos_gdf,
@@ -360,10 +450,12 @@ with mapa_col2:
         style_function=style_function,
         highlight_function=lambda x: {"fillColor": "yellow", "fillOpacity": 0.5},
     ).add_to(mapa_distritos)
+    
     # Adicionar legenda ao mapa
     colormap.caption = 'Velocidade Média de Internet (Mbps)'
     colormap.add_to(mapa_distritos)
-    # Exibir mapa no Streamlit
+    
+    # Exibir o mapa de distritos
     folium_static(mapa_distritos)
 
 ####################################
@@ -437,7 +529,7 @@ def on_click_distrito(event):
         escola_selecionada = escolas_no_distrito.iloc[0]
         folium.Marker([escola_selecionada['LATITUDE'], escola_selecionada['LONGITUDE']],
                       popup="Escola Selecionada").add_to(mapa_escolas)
-        folium_static(mapa_escolas)
+        # folium_static(mapa_escolas)
 
 # Adicionar interação de clique nos distritos
 folium.GeoJson(
@@ -446,17 +538,6 @@ folium.GeoJson(
     tooltip=folium.GeoJsonTooltip(fields=["NOME_DIST"], aliases=["Distrito: "]),
     on_click=on_click_distrito
 ).add_to(mapa_distritos)
-
-if distrito:
-    distrito_selecionado = distrito[0]
-    st.session_state["selected_district"] = distrito_selecionado
-    st.write(f"Distrito Selecionado: {distrito_selecionado}")
-    escolas_no_distrito = filtered_escolas[filtered_escolas['DISTRITO'] == distrito_selecionado]
-    if not escolas_no_distrito.empty:
-        escola_selecionada = escolas_no_distrito.iloc[0]
-        folium.Marker([escola_selecionada['LATITUDE'], escola_selecionada['LONGITUDE']],
-                      popup="Escola Selecionada").add_to(mapa_escolas)
-        folium_static(mapa_escolas)
         folium.Marker([escola_selecionada['LATITUDE'], escola_selecionada['LONGITUDE']],
                       popup="Escola Selecionada").add_to(mapa_escolas)
         folium_static(mapa_escolas)
