@@ -358,24 +358,27 @@ st.markdown(
     ''',
     unsafe_allow_html=True
 )
-
 ####################################
 # MAPAS INTERATIVOS e CARDS
 ####################################
 st.title("Velocidade de Internet nas Escolas São Paulo capital")
-# Calcular as métricas com base no DataFrame filtrado
+
+# Define os tiles do mapa conforme o tema (claro ou escuro)
+tiles_map = 'cartodb positron' if tema == "☀️" else 'cartodb dark_matter'
+
+# Calcular as métricas dos cards com base no DataFrame filtrado
 if not filtered_escolas.empty:
     media_escolas = filtered_escolas['Velocidade_Internet'].mean()
-    # Para a velocidade média dos distritos, agrupamos por distrito e depois fazemos a média
+    # Para a velocidade média dos distritos, agrupamos por distrito e depois calculamos a média geral
     media_distritos = filtered_escolas.groupby('DISTRITO')['Velocidade_Internet'].mean().mean() \
                       if filtered_escolas['DISTRITO'].nunique() > 0 else 0
 else:
     media_escolas = 0
     media_distritos = 0
 
-# Exibir os dois cards (lado a lado)
-card1, card2 = st.columns(2)
-with card1:
+# --- Cards (mesma proporção que os mapas: 2:3) ---
+card_left, card_right = st.columns([2, 3])
+with card_left:
     st.markdown(f"""
     <div style="background-color: {card_bg}; padding: 20px; border-radius: 10px; text-align: center;">
         <h3 style="color: {card_text}; margin: 0;">Velocidade média das escolas</h3>
@@ -387,7 +390,7 @@ with card1:
         </p>
     </div>
     """, unsafe_allow_html=True)
-with card2:
+with card_right:
     st.markdown(f"""
     <div style="background-color: {card_bg}; padding: 20px; border-radius: 10px; text-align: center;">
         <h3 style="color: {card_text}; margin: 0;">Velocidade média dos distritos</h3>
@@ -400,36 +403,67 @@ with card2:
     </div>
     """, unsafe_allow_html=True)
 
-# Agora, os mapas:
-mapa_col1, mapa_col2 = st.columns(2)
+# --- Layout dos Mapas ---
+# Organiza os mapas em duas colunas com proporção [2, 3]
+col_left, col_right = st.columns([2, 3])
 
-# Mapa das Escolas
-with mapa_col1:
+# Mapa das Escolas (coluna da esquerda)
+with col_left:
     st.header("Localização das Escolas")
-    mapa_escolas = folium.Map(location=[-23.5505, -46.6333], zoom_start=11, tiles='cartodb positron')
-    cluster = MarkerCluster(options={'maxClusterRadius':20}).add_to(mapa_escolas)
+    mapa_escolas = folium.Map(
+        location=[-23.5505, -46.6333],
+        zoom_start=10,
+        tiles=tiles_map
+    )
+    cluster = MarkerCluster(options={'maxClusterRadius': 10}).add_to(mapa_escolas)
     for _, row in filtered_escolas.iterrows():
         folium.CircleMarker(
             location=[row['LATITUDE'], row['LONGITUDE']],
-            radius=row['Velocidade_Internet'] / 10,
-            color='blue',
+            radius=(row['Velocidade_Internet'] / 10) * 1.5,  # Aumenta o tamanho do círculo
+            weight=0,               # Remove a borda
+            color=None,             # Sem cor de borda
             fill=True,
-            fill_color='blue',
+            fill_color='#fa4c4d',   # Nova cor dos marcadores
             fill_opacity=0.5,
-            popup=folium.Popup(f"{row['NOMES']}<br>IDEB: {row['IDEB']:.2f}<br>Velocidade: {row['Velocidade_Internet']:.2f} Mbps", max_width=300),
+            popup=folium.Popup(
+                f"{row['NOMES']}<br>IDEB: {row['IDEB']:.2f}<br>Velocidade: {row['Velocidade_Internet']:.2f} Mbps",
+                max_width=300
+            ),
         ).add_to(cluster)
     folium_static(mapa_escolas)
 
-# Mapa de Distritos
+# Coluna da direita: subdividida em duas (mapa de distritos e tabela de velocidade)
+with col_right:
+    # Divide a coluna da direita em duas: mapa de distritos (2/3) e tabela (1/3)
+    mapa_col2, tabela_col = st.columns([2, 1])
+    
+    # Mapa de Distritos (coluna da esquerda interna)
 with mapa_col2:
     st.header("Velocidade de Internet por Distrito")
+    # Calcula a velocidade média por distrito
     velocidade_por_distrito = escolas.groupby('DISTRITO')['Velocidade_Internet'].mean().reset_index()
-    distritos_gdf = distritos_gdf.merge(velocidade_por_distrito, left_on='NOME_DIST', right_on='DISTRITO', how='left')
+    # Mescla os dados do GeoDataFrame com a velocidade média por distrito
+    distritos_gdf = distritos_gdf.merge(
+        velocidade_por_distrito, left_on='NOME_DIST', right_on='DISTRITO', how='left'
+    )
+    # Preenche valores NaN com a média geral
     distritos_gdf['Velocidade_Internet'].fillna(distritos_gdf['Velocidade_Internet'].mean(), inplace=True)
-    colormap = linear.Reds_09.scale(distritos_gdf['Velocidade_Internet'].min(), distritos_gdf['Velocidade_Internet'].max())
-    mapa_distritos = folium.Map(location=[-23.5505, -46.6333], zoom_start=11, tiles='cartodb positron')
+    # Cria o colormap com base no intervalo dos valores
+    colormap = linear.Reds_09.scale(
+        distritos_gdf['Velocidade_Internet'].min(), 
+        distritos_gdf['Velocidade_Internet'].max()
+    )
+    # Cria o mapa de distritos usando os tiles definidos pelo tema,
+    # definindo explicitamente a largura e altura para garantir alinhamento
+    mapa_distritos = folium.Map(
+        location=[-23.5505, -46.6333],
+        zoom_start=10,
+        tiles=tiles_map,
+        width="100%",    # Força a largura a 100%
+        height="600px"   # Define a altura para 600px
+    )
     
-    # Definir os distritos a destacar apenas se algum filtro for selecionado
+    # Se algum filtro estiver selecionado, define os distritos destacados; caso contrário, nenhum é destacado
     if (st.session_state.get("DRE", []) or 
         st.session_state.get("SUBPREF", []) or 
         st.session_state.get("TIPOESC", []) or 
@@ -440,6 +474,7 @@ with mapa_col2:
     else:
         highlighted_distritos = []
     
+    # Função de estilo para os polígonos dos distritos
     def style_function(feature):
         if feature['properties']['NOME_DIST'] in highlighted_distritos:
             return {
@@ -471,9 +506,37 @@ with mapa_col2:
         highlight_function=lambda x: {"fillColor": "yellow", "fillOpacity": 0.5},
     ).add_to(mapa_distritos)
     
+    # Define o caption do colormap como texto simples
     colormap.caption = 'Velocidade Média de Internet (Mbps)'
+       
+    # Adiciona o colormap ao mapa e renderiza o mapa de distritos
     colormap.add_to(mapa_distritos)
     folium_static(mapa_distritos)
+    
+    # Tabela de Velocidade por Distrito (coluna da direita interna)
+    with tabela_col:
+        st.header("Velocidade Média por Distrito")
+        # Agrupa os dados filtrados por distrito, calcula a média e ordena de forma decrescente
+        df_distritos = filtered_escolas.groupby('DISTRITO')['Velocidade_Internet'].mean().reset_index()
+        df_distritos = df_distritos.rename(columns={'DISTRITO': 'Distrito', 'Velocidade_Internet': 'Velocidade'})
+        df_distritos = df_distritos.sort_values('Velocidade', ascending=False)
+    
+        st.dataframe(
+            df_distritos,
+            column_order=("Distrito", "Velocidade"),
+            hide_index=True,
+            use_container_width=True,  # A tabela ocupará toda a largura do container
+            height=600,                # Define a altura (ajuste conforme necessário)
+            column_config={
+                "Distrito": st.column_config.TextColumn("Distrito"),
+                "Velocidade": st.column_config.ProgressColumn(
+                "Velocidade (Mbps)",
+                    format="%.2f",
+                    min_value=0,
+                    max_value=df_distritos["Velocidade"].max()
+                )
+            }
+        )
 
 ####################################
 # GRÁFICO DE DISPERSÃO ESCOLAS 
