@@ -412,24 +412,23 @@ with col_left:
     st.header("Localização das Escolas")
     mapa_escolas = folium.Map(
         location=[-23.5505, -46.6333],
-        zoom_start=10,
+        zoom_start=11,
         tiles=tiles_map
     )
-    cluster = MarkerCluster(options={'maxClusterRadius': 10}).add_to(mapa_escolas)
     for _, row in filtered_escolas.iterrows():
         folium.CircleMarker(
             location=[row['LATITUDE'], row['LONGITUDE']],
-            radius=(row['Velocidade_Internet'] / 10) * 1.5,  # Aumenta o tamanho do círculo
+            radius=(row['Velocidade_Internet'] / 10) * 1.01,  # Aumenta o tamanho do círculo
             weight=0,               # Remove a borda
             color=None,             # Sem cor de borda
             fill=True,
-            fill_color='#fa4c4d',   # Nova cor dos marcadores
+            fill_color='#fa4c4d',   # cor dos marcadores
             fill_opacity=0.5,
             popup=folium.Popup(
                 f"{row['NOMES']}<br>IDEB: {row['IDEB']:.2f}<br>Velocidade: {row['Velocidade_Internet']:.2f} Mbps",
                 max_width=300
             ),
-        ).add_to(cluster)
+        ).add_to(mapa_escolas)
     folium_static(mapa_escolas)
 
 # Coluna da direita: subdividida em duas (mapa de distritos e tabela de velocidade)
