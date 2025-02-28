@@ -222,6 +222,8 @@ def load_distritos_shapefile():
     return gdf
 
 # Carregar os dados
+# Carregar o arquivo GeoJSON do Distrito de Sao Paulo
+sao_paulo_gdf = gpd.read_file("LAYER_DISTRITO/geojs-35-mun.json")
 escolas = load_escolas()
 distritos_gdf = load_distritos_shapefile()
 
@@ -238,7 +240,7 @@ speed_range = st.sidebar.slider(
 )
 
 # 2. Categorias de Velocidade (Calculadas a partir dos dados originais)
-q1, q2, q3 = np.percentile(escolas['Velocidade_Internet'], [25, 50, 75])
+q1, q2, q3 = np.percentile(escolas['Velocidade_Internet'], [25, 50, 75]) #quartis
 # Cada categoria é definida com base na condição
 categoria_velocidade = {
     "Muito Baixa": escolas['Velocidade_Internet'] <= q1,
@@ -408,72 +410,133 @@ with card_right:
 col_left, col_right = st.columns([2, 3])
 
 # Mapa das Escolas (coluna da esquerda)
+# Adicionando camadas de categorias de velocidade ao mapa
 with col_left:
-    st.header("Localização das Escolas")
-    mapa_escolas = folium.Map(
-        location=[-23.5505, -46.6333],
-        zoom_start=11,
-        tiles=tiles_map
-    )
-    for _, row in filtered_escolas.iterrows():
-        folium.CircleMarker(
-            location=[row['LATITUDE'], row['LONGITUDE']],
-            radius=(row['Velocidade_Internet'] / 10) * 1.01,  # Aumenta o tamanho do círculo
-            weight=0,               # Remove a borda
-            color=None,             # Sem cor de borda
-            fill=True,
-            fill_color='#fa4c4d',   # cor dos marcadores
-            fill_opacity=0.5,
-            popup=folium.Popup(
-                f"{row['NOMES']}<br>IDEB: {row['IDEB']:.2f}<br>Velocidade: {row['Velocidade_Internet']:.2f} Mbps",
-                max_width=300
-            ),
+    # Container principal para organização do layout
+    with st.container():
+        st.header("Localização das Escolas")
+        
+        # Cria o mapa base
+        mapa_escolas = folium.Map(
+            location=[-23.5505, -46.6333],  # Coordenadas do centro de SP
+            zoom_start=11,                   # Zoom inicial
+            tiles=tiles_map,                 # Estilo do mapa (definido pelo tema)
+            width='100%',                    # Largura total do container
+            height=600                       # Altura fixa para alinhamento
+        )
+
+        # =====================================================
+        # CAMADA DO MUNICÍPIO DE SÃO PAULO
+        # =====================================================
+        folium.GeoJson(
+            sao_paulo_gdf,  # GeoDataFrame com os limites do município
+            name="Município de SP",
+            style_function=lambda x: {
+                'fillColor': '#808080',  # Cinza
+                'color': '#000000',      # Cor do contorno
+                'weight': 2,            # Espessura da linha
+                'fillOpacity': 0.2,      # 20% de transparência
+                'dashArray': '5, 5'      # Linha pontilhada
+            },
+            tooltip=folium.GeoJsonTooltip(
+                fields=["name"],  # Campo com o nome do município
+                aliases=["Município:"],
+                localize=True
+            )
         ).add_to(mapa_escolas)
-    folium_static(mapa_escolas)
+
+        # =====================================================
+        # CAMADAS DE VELOCIDADE (FEATURE GROUPS)
+        # =====================================================
+        for categoria, condicao in categoria_velocidade.items():
+            # Filtra escolas por categoria
+            escolas_categoria = filtered_escolas[condicao]
+            
+            if not escolas_categoria.empty:
+                # Cria grupo de camadas
+                feature_group = folium.FeatureGroup(name=f"Velocidade {categoria}")
+                
+                # Adiciona marcadores circulares
+                for _, row in escolas_categoria.iterrows():
+                    folium.CircleMarker(
+                        location=[row['LATITUDE'], row['LONGITUDE']],
+                        radius=(row['Velocidade_Internet'] / 10) * 1.01,  # Tamanho proporcional
+                        weight=0,               # Sem borda
+                        color=None,
+                        fill=True,
+                        fill_color='#fa4c4d' if categoria == "Muito Baixa" else 
+                                  '#ff7f0e' if categoria == "Baixa" else 
+                                  '#2ca02c' if categoria == "Média" else 
+                                  '#1f77b4',    # Cores por categoria
+                        fill_opacity=0.5,       # 50% de transparência
+                        popup=folium.Popup(     # Popup com informações
+                            f"""
+                            <b>{row['NOMES']}</b><br>
+                            IDEB: {row['IDEB']:.2f}<br>
+                            Velocidade: {row['Velocidade_Internet']:.2f} Mbps
+                            """,
+                            max_width=300
+                        ),
+                    ).add_to(feature_group)
+                
+                # Adiciona o grupo ao mapa
+                feature_group.add_to(mapa_escolas)
+
+        # =====================================================
+        # CONTROLE DE CAMADAS
+        # =====================================================
+        folium.LayerControl(
+            position='topright'  # Posição do controle
+        ).add_to(mapa_escolas)
+
+        # Renderiza o mapa
+        folium_static(mapa_escolas)
 
 # Coluna da direita: subdividida em duas (mapa de distritos e tabela de velocidade)
 with col_right:
     # Divide a coluna da direita em duas: mapa de distritos (2/3) e tabela (1/3)
     mapa_col2, tabela_col = st.columns([2, 1])
-    
-    # Mapa de Distritos (coluna da esquerda interna)
+       
+# Mapa de Distritos (coluna da esquerda interna)
 with mapa_col2:
     st.header("Velocidade de Internet por Distrito")
-    # Calcula a velocidade média por distrito
+    
+    # 1. Processamento dos dados
     velocidade_por_distrito = escolas.groupby('DISTRITO')['Velocidade_Internet'].mean().reset_index()
-    # Mescla os dados do GeoDataFrame com a velocidade média por distrito
     distritos_gdf = distritos_gdf.merge(
         velocidade_por_distrito, left_on='NOME_DIST', right_on='DISTRITO', how='left'
     )
-    # Preenche valores NaN com a média geral
     distritos_gdf['Velocidade_Internet'].fillna(distritos_gdf['Velocidade_Internet'].mean(), inplace=True)
-    # Cria o colormap com base no intervalo dos valores
+
+    # 2. Criação do colormap
     colormap = linear.Reds_09.scale(
         distritos_gdf['Velocidade_Internet'].min(), 
         distritos_gdf['Velocidade_Internet'].max()
     )
-    # Cria o mapa de distritos usando os tiles definidos pelo tema,
-    # definindo explicitamente a largura e altura para garantir alinhamento
+
+    # 3. Ajustes de tamanho do colormap
+    colormap.width = 350  # Largura da barra de cores
+    colormap.height = 40   # Altura da barra de cores
+
+    # 4. Criação do mapa
     mapa_distritos = folium.Map(
         location=[-23.5505, -46.6333],
         zoom_start=10,
         tiles=tiles_map,
-        width="100%",    # Força a largura a 100%
-        height="600px"   # Define a altura para 600px
+        width="100%",
+        height="600px"
     )
-    
-    # Se algum filtro estiver selecionado, define os distritos destacados; caso contrário, nenhum é destacado
-    if (st.session_state.get("DRE", []) or 
-        st.session_state.get("SUBPREF", []) or 
-        st.session_state.get("TIPOESC", []) or 
-        st.session_state.get("BAIRRO", []) or 
-        st.session_state.get("DISTRITO", []) or 
-        st.session_state.get("NOMES", [])):
-        highlighted_distritos = filtered_escolas['DISTRITO'].unique().tolist()
-    else:
-        highlighted_distritos = []
-    
-    # Função de estilo para os polígonos dos distritos
+
+    # 5. Lógica de distritos destacados
+    filtros_disponiveis = ["DRE", "SUBPREF", "TIPOESC", "BAIRRO", "DISTRITO", "NOMES"]
+    filtros_ativos = any(st.session_state.get(filtro, []) for filtro in filtros_disponiveis)
+    highlighted_distritos = (
+        filtered_escolas['DISTRITO'].unique().tolist()
+        if filtros_ativos and 'filtered_escolas' in globals()
+        else []
+    )
+
+    # 6. Estilo dos polígonos
     def style_function(feature):
         if feature['properties']['NOME_DIST'] in highlighted_distritos:
             return {
@@ -489,14 +552,15 @@ with mapa_col2:
                 'weight': 0.5,
                 'fillOpacity': 0.5
             }
-    
+
+    # 7. Adiciona camada GeoJson
     folium.GeoJson(
         distritos_gdf,
         name="Distritos",
         tooltip=folium.GeoJsonTooltip(
             fields=["NOME_DIST", "Velocidade_Internet"],
             aliases=["Distrito:", "Velocidade Média (Mbps):"],
-            localize=True,
+           localize=True,
             sticky=True,
             labels=True,
             style="background-color: white; color: black; font-size: 12px; padding: 5px;"
@@ -504,32 +568,61 @@ with mapa_col2:
         style_function=style_function,
         highlight_function=lambda x: {"fillColor": "yellow", "fillOpacity": 0.5},
     ).add_to(mapa_distritos)
-    
-    # Define o caption do colormap como texto simples
+
+    # 8. Configurações do colormap
     colormap.caption = 'Velocidade Média de Internet (Mbps)'
-       
-    # Adiciona o colormap ao mapa e renderiza o mapa de distritos
+
+    # 9. Adiciona colormap ao mapa
     colormap.add_to(mapa_distritos)
     folium_static(mapa_distritos)
-    
-    # Tabela de Velocidade por Distrito (coluna da direita interna)
+
+# Tabela de Velocidade por Distrito (coluna da direita interna)
     with tabela_col:
-        st.header("Velocidade Média por Distrito")
+        # Ajusta o espaçamento do título com CSS
+        st.markdown(
+            """
+            <style>
+            /* Reduz o espaçamento do título */
+            .stHeader {
+                margin-bottom: 0 !important;
+                padding-bottom: 0 !important;
+            }
+
+            /* Reduz o tamanho da fonte da coluna Distrito */
+            div[data-testid="stDataFrame"] table td:first-child {
+                font-size: 12px !important;
+            }
+
+            /* Ajusta o padding das células para melhorar a densidade */
+            div[data-testid="stDataFrame"] table td {
+                padding-top: 2px !important;
+                padding-bottom: 2px !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown("**Velocidade Média por Distrito**")  # Usando markdown para o título
+
         # Agrupa os dados filtrados por distrito, calcula a média e ordena de forma decrescente
         df_distritos = filtered_escolas.groupby('DISTRITO')['Velocidade_Internet'].mean().reset_index()
         df_distritos = df_distritos.rename(columns={'DISTRITO': 'Distrito', 'Velocidade_Internet': 'Velocidade'})
         df_distritos = df_distritos.sort_values('Velocidade', ascending=False)
-    
+        
+        # Exibe a tabela com ajustes de altura e fonte
         st.dataframe(
             df_distritos,
             column_order=("Distrito", "Velocidade"),
             hide_index=True,
             use_container_width=True,  # A tabela ocupará toda a largura do container
-            height=600,                # Define a altura (ajuste conforme necessário)
+            height=600,                # Ajuste a altura para corresponder ao mapa
             column_config={
-                "Distrito": st.column_config.TextColumn("Distrito"),
+                "Distrito": st.column_config.TextColumn(
+                    "Distrito",
+                    width="medium",  # Define a largura da coluna
+                ),
                 "Velocidade": st.column_config.ProgressColumn(
-                "Velocidade (Mbps)",
+                    "Velocidade (Mbps)",
                     format="%.2f",
                     min_value=0,
                     max_value=df_distritos["Velocidade"].max()
