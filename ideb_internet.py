@@ -590,7 +590,7 @@ with mapa_col2:
 
             /* Reduz o tamanho da fonte da coluna Distrito */
             div[data-testid="stDataFrame"] table td:first-child {
-                font-size: 12px !important;
+                font-size: 10px !important;
             }
 
             /* Ajusta o padding das células para melhorar a densidade */
