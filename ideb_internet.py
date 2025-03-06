@@ -6,7 +6,9 @@ import folium
 from streamlit_folium import folium_static
 from folium.plugins import MarkerCluster
 from branca.colormap import linear
+from branca.element import MacroElement, Template
 import plotly.express as px
+import plotly.graph_objects as go
 
 # Configurar o layout da página
 st.set_page_config(layout="wide", page_title="Velocidade de Internet nas Escolas São Paulo capital")
@@ -112,17 +114,13 @@ if tema == "🌙":
     paper_bgcolor = "#0e1118"   # Fundo externo dos gráficos
     font_color = "white"        # Cor dos textos, legendas e números
     sidebar_bg = "#383838"      # Fundo da sidebar
-    card_bg = "#383838"
-    card_text = "white"
 else:
     # Modo Claro
     plot_bgcolor = "#ffffff"
     paper_bgcolor = "#ffffff"
     font_color = "#000000"      # Textos do gráfico agora ficam pretos
     sidebar_bg = "#fff9f9"      # Fundo off-white na sidebar
-    card_bg = "#fff9f9"
-    card_text = "#0e1118"
-
+    
 # Atualizar cores do toggle com base no tema
 st.markdown(
     f"""
@@ -361,14 +359,14 @@ st.markdown(
     unsafe_allow_html=True
 )
 ####################################
-# MAPAS INTERATIVOS e CARDS
+# MAPAS INTERATIVOS e VELOCÍMETROS
 ####################################
 st.title("Velocidade de Internet nas Escolas São Paulo capital")
 
 # Define os tiles do mapa conforme o tema (claro ou escuro)
 tiles_map = 'cartodb positron' if tema == "☀️" else 'cartodb dark_matter'
 
-# Calcular as métricas dos cards com base no DataFrame filtrado
+# Calcular as métricas com base no DataFrame filtrado
 if not filtered_escolas.empty:
     media_escolas = filtered_escolas['Velocidade_Internet'].mean()
     # Para a velocidade média dos distritos, agrupamos por distrito e depois calculamos a média geral
@@ -378,32 +376,121 @@ else:
     media_escolas = 0
     media_distritos = 0
 
-# --- Cards (mesma proporção que os mapas: 2:3) ---
-card_left, card_right = st.columns([2, 3])
-with card_left:
-    st.markdown(f"""
-    <div style="background-color: {card_bg}; padding: 20px; border-radius: 10px; text-align: center;">
-        <h3 style="color: {card_text}; margin: 0;">Velocidade média das escolas</h3>
-        <p style="font-size: 24px; color: {card_text}; margin: 0;">
-            {media_escolas:.2f} Mbps 
-            <span style="color: {'green' if media_escolas > media_distritos else 'red'}; font-size: 20px;">
-                {'&#8593;' if media_escolas > media_distritos else '&#8595;'}
-            </span>
-        </p>
+# Cores das categorias (com transparência)
+cores = {
+    "Muito Baixa": 'rgba(250, 76, 77, 0.8)',  # 80% opaco
+    "Baixa": 'rgba(255, 127, 14, 0.8)',
+    "Média": 'rgba(44, 160, 44, 0.8)',
+    "Alta": 'rgba(31, 119, 180, 0.8)'
+}
+
+# Cálculo das categorias (quartis)
+q1, q2, q3 = np.percentile(filtered_escolas['Velocidade_Internet'], [25, 50, 75])
+categorias = {
+    "Muito Baixa": q1,
+    "Baixa": q2,
+    "Média": q3,
+    "Alta": 100  # Definimos o limite máximo como 100 Mbps
+}
+
+# Função para criar o velocímetro
+def criar_velocimetro(valor, valor_referencia, categorias, cores, titulo):
+    # Determinar a cor com base no valor
+    if valor <= categorias["Muito Baixa"]:
+        cor = cores["Muito Baixa"]
+    elif valor <= categorias["Baixa"]:
+        cor = cores["Baixa"]
+    elif valor <= categorias["Média"]:
+        cor = cores["Média"]
+    else:
+        cor = cores["Alta"]
+
+    # Determinar a seta (para cima ou para baixo)
+    seta = "▲" if valor > valor_referencia else "▼"
+    
+    # Criar o velocímetro
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=valor,
+        number={
+            'suffix': " Mbps",
+            'font': {'size': 24, 'color': font_color},
+            'valueformat': '.2f',  # Formato com duas casas decimais
+        },
+        title={
+            'text': f"{titulo}<br>{seta}",  # Título com a seta
+            'font': {'size': 12, 'color': font_color},
+        },
+        gauge={
+            'axis': {'range': [0, categorias["Alta"]], 'tickwidth': 1, 'tickcolor': "darkblue", 'tickfont': {'color': font_color}},
+            'bar': {'color': 'rgba(0,0,0,0)'},  # Barra transparente (sem sobreposição)
+            'steps': [
+                {'range': [0, categorias["Muito Baixa"]], 'color': cores["Muito Baixa"], 'name': 'Muito Baixa'},
+                {'range': [categorias["Muito Baixa"], categorias["Baixa"]], 'color': cores["Baixa"], 'name': 'Baixa'},
+                {'range': [categorias["Baixa"], categorias["Média"]], 'color': cores["Média"], 'name': 'Média'},
+                {'range': [categorias["Média"], categorias["Alta"]], 'color': cores["Alta"], 'name': 'Alta'},
+            ],
+            'threshold': {
+                'line': {'color': "black", 'width': 4},
+                'thickness': 0.75,
+                'value': valor
+            },
+            'bgcolor': plot_bgcolor,  # Fundo do velocímetro
+        }
+    ))
+    fig.update_layout(
+        paper_bgcolor=paper_bgcolor,  # Fundo externo do gráfico
+        font={'color': font_color},   # Cor dos textos
+        margin=dict(t=35, b=15),      # Reduzir margens para diminuir o tamanho
+        height=200,                   # Altura do gráfico
+    )
+    return fig
+
+# Criar os velocímetros
+velocimetro_escolas = criar_velocimetro(
+    media_escolas, media_distritos, categorias, cores, "Velocidade média das escolas"
+)
+velocimetro_distritos = criar_velocimetro(
+    media_distritos, media_escolas, categorias, cores, "Velocidade média dos distritos"
+)
+
+# Exibir os velocímetros (proporção 2:3)
+col1, col2 = st.columns([2, 3])
+with col1:
+    # Título acima do velocímetro das escolas
+    st.markdown("<h5 style='text-align: center; font-size: 20px;'>Velocidade média das escolas</h5>", unsafe_allow_html=True)
+    
+    # Exibir o gráfico
+    st.plotly_chart(velocimetro_escolas, use_container_width=True)
+    
+    # Legenda para o velocímetro das escolas (abaixo do gráfico, com espaçamento reduzido)
+    st.markdown("""
+    <div style="text-align: center; margin-top: -20px;">
+        <span style="color: #fa4c4d;">● Muito Baixa</span> &nbsp;
+        <span style="color: #ff7f0e;">● Baixa</span> &nbsp;
+        <span style="color: #2ca02c;">● Média</span> &nbsp;
+        <span style="color: #1f77b4;">● Alta</span>
     </div>
     """, unsafe_allow_html=True)
-with card_right:
-    st.markdown(f"""
-    <div style="background-color: {card_bg}; padding: 20px; border-radius: 10px; text-align: center;">
-        <h3 style="color: {card_text}; margin: 0;">Velocidade média dos distritos</h3>
-        <p style="font-size: 24px; color: {card_text}; margin: 0;">
-            {media_distritos:.2f} Mbps 
-            <span style="color: {'red' if media_escolas > media_distritos else 'green'}; font-size: 20px;">
-                {'&#8595;' if media_escolas > media_distritos else '&#8593;'}
-            </span>
-        </p>
+
+with col2:
+    # Título acima do velocímetro dos distritos
+    st.markdown("<h5 style='text-align: center; font-size: 20px;'>Velocidade média dos distritos</h5>", unsafe_allow_html=True)
+    
+    # Exibir o gráfico
+    st.plotly_chart(velocimetro_distritos, use_container_width=True)
+    
+    # Legenda para o velocímetro dos distritos (abaixo do gráfico, com espaçamento reduzido)
+    st.markdown("""
+    <div style="text-align: center; margin-top: -20px;">
+        <span style="color: #fa4c4d;">● Muito Baixa</span> &nbsp;
+        <span style="color: #ff7f0e;">● Baixa</span> &nbsp;
+        <span style="color: #2ca02c;">● Média</span> &nbsp;
+        <span style="color: #1f77b4;">● Alta</span>
     </div>
     """, unsafe_allow_html=True)
+
+# =====================================================
 
 # --- Layout dos Mapas ---
 # Organiza os mapas em duas colunas com proporção [2, 3]
@@ -590,13 +677,13 @@ with mapa_col2:
 
             /* Reduz o tamanho da fonte da coluna Distrito */
             div[data-testid="stDataFrame"] table td:first-child {
-                font-size: 10px !important;
+                font-size: 8px !important;
             }
 
             /* Ajusta o padding das células para melhorar a densidade */
             div[data-testid="stDataFrame"] table td {
-                padding-top: 2px !important;
-                padding-bottom: 2px !important;
+                padding-top: 1px !important;
+                padding-bottom: 1px !important;
             }
             </style>
             """,
