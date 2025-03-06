@@ -369,9 +369,12 @@ tiles_map = 'cartodb positron' if tema == "☀️" else 'cartodb dark_matter'
 # Calcular as métricas com base no DataFrame filtrado
 if not filtered_escolas.empty:
     media_escolas = filtered_escolas['Velocidade_Internet'].mean()
-    # Para a velocidade média dos distritos, agrupamos por distrito e depois calculamos a média geral
-    media_distritos = filtered_escolas.groupby('DISTRITO')['Velocidade_Internet'].mean().mean() \
-                      if filtered_escolas['DISTRITO'].nunique() > 0 else 0
+
+    # Encontrar os distritos das escolas filtradas
+    distritos_selecionados = filtered_escolas['DISTRITO'].unique()
+
+    # Calcular a média de velocidade dos distritos considerando TODAS as escolas do distrito
+    media_distritos = escolas[escolas['DISTRITO'].isin(distritos_selecionados)]['Velocidade_Internet'].mean()
 else:
     media_escolas = 0
     media_distritos = 0
@@ -385,7 +388,7 @@ cores = {
 }
 
 # Cálculo das categorias (quartis)
-q1, q2, q3 = np.percentile(filtered_escolas['Velocidade_Internet'], [25, 50, 75])
+q1, q2, q3 = np.percentile(escolas['Velocidade_Internet'], [25, 50, 75])
 categorias = {
     "Muito Baixa": q1,
     "Baixa": q2,
@@ -691,9 +694,17 @@ with mapa_col2:
         )
         st.markdown("**Velocidade Média por Distrito**")  # Usando markdown para o título
 
-        # Agrupa os dados filtrados por distrito, calcula a média e ordena de forma decrescente
-        df_distritos = filtered_escolas.groupby('DISTRITO')['Velocidade_Internet'].mean().reset_index()
+        # Agrupa os dados do DataFrame completo para calcular a média de velocidade por distrito
+        df_distritos = escolas.groupby('DISTRITO')['Velocidade_Internet'].mean().reset_index()
+
+        # Renomeia as colunas para facilitar a visualização na tabela
         df_distritos = df_distritos.rename(columns={'DISTRITO': 'Distrito', 'Velocidade_Internet': 'Velocidade'})
+
+        # Se houver filtros ativos (por exemplo, por DRE, subprefeitura, etc.), filtra a tabela para exibir apenas os distritos destacados
+        if filtros_ativos:
+            df_distritos = df_distritos[df_distritos["Distrito"].isin(highlighted_distritos)]
+
+        # Ordena os distritos por velocidade média de forma decrescente
         df_distritos = df_distritos.sort_values('Velocidade', ascending=False)
         
         # Exibe a tabela com ajustes de altura e fonte
@@ -712,7 +723,7 @@ with mapa_col2:
                     "Velocidade (Mbps)",
                     format="%.2f",
                     min_value=0,
-                    max_value=df_distritos["Velocidade"].max()
+                    max_value=escolas["Velocidade_Internet"].max()
                 )
             }
         )
