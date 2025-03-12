@@ -891,6 +891,7 @@ def carregar_faq():
     
     return faq_data
 
+# Carregar o FAQ
 faq_data = carregar_faq()
 df = pd.DataFrame(faq_data)
 
@@ -898,14 +899,34 @@ df = pd.DataFrame(faq_data)
 @st.cache_data(show_spinner=True)
 def carregar_embeddings():
     """Carrega os embeddings pré-computados do FAQ, se existirem."""
-    try:
-        with open("faq_embeddings.json", "r", encoding="utf-8") as f: # Caminho relativo
-            return json.load(f)
-    except FileNotFoundError:
+    file_path = "faq_embeddings.json"  # Caminho relativo ao diretório raiz
+    
+    # Verifica se o arquivo existe
+    if not os.path.exists(file_path):
+        st.warning(f"O arquivo {file_path} não foi encontrado. Gerando embeddings...")
         return None
     
+    try:
+        # Tenta abrir e carregar o arquivo JSON
+        with open(file_path, "r", encoding="utf-8") as f:
+            embeddings = json.load(f)
+            
+            # Verifica se o conteúdo é um dicionário
+            if not isinstance(embeddings, dict):
+                st.error(f"O arquivo {file_path} não está no formato correto (esperado: dicionário).")
+                return None
+            
+            return embeddings
+    except json.JSONDecodeError as e:
+        st.error(f"Erro ao decodificar o arquivo {file_path}: {e}")
+        return None
+    except Exception as e:
+        st.error(f"Erro inesperado ao carregar {file_path}: {e}")
+        return None
+
 # Carregar embeddings
 faq_embeddings = carregar_embeddings()
+
 
 # ================== Gerar Embeddings ==================
 @st.cache_data(show_spinner=True)
@@ -929,7 +950,7 @@ if 'pergunta' in df.columns:
     # Salvar os embeddings no arquivo JSON
     with open("faq_embeddings.json", "w", encoding="utf-8") as f:
         json.dump(faq_embeddings, f, ensure_ascii=False, indent=4)
-
+        
 # ================== Carregar FAISS Index ==================
 @st.cache_data(show_spinner=True)
 def carregar_faiss_index(caminho):
