@@ -868,19 +868,26 @@ openai.api_key = openai_api_key
 @st.cache_data(show_spinner=True)
 def carregar_faq():
     """Carrega o arquivo CSV de perguntas e respostas do FAQ, se existirem."""
-    file_path = "faq_data.csv" # Caminho relativo
+    file_path = "faq_data.csv"  # Caminho relativo ao diretório raiz
     
     if os.path.exists(file_path):
-        faq_data = pd.read_csv(file_path, encoding="utf-8")
-        # Converte a coluna 'embedding' de volta de string para lista (caso esteja armazenada como string)
-        faq_data['embedding'] = faq_data['embedding'].apply(ast.literal_eval)
-        # Verifica se a coluna 'pergunta' existe
-        if 'pergunta' not in faq_data.columns:
-            st.error("A coluna 'pergunta' não foi encontrada no arquivo CSV.")
+        # Carrega o CSV com o separador correto
+        faq_data = pd.read_csv(file_path, encoding="utf-8", sep=',')
+        
+        # Verifica se a coluna 'embedding' existe
+        if 'embedding' not in faq_data.columns:
+            st.error("A coluna 'embedding' não foi encontrada no arquivo CSV.")
+            return pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
+        
+        # Converte a coluna 'embedding' de string para lista
+        try:
+            faq_data['embedding'] = faq_data['embedding'].apply(ast.literal_eval)
+        except (ValueError, SyntaxError) as e:
+            st.error(f"Erro ao converter a coluna 'embedding': {e}")
             return pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
     else:
         st.error(f"O arquivo FAQ não foi encontrado no caminho: {file_path}")
-        faq_data = pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
+        return pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
     
     return faq_data
 
