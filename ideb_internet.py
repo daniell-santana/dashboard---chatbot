@@ -1,20 +1,26 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import geopandas as gpd
-import folium
-from streamlit_folium import folium_static
-from folium.plugins import MarkerCluster
-from branca.colormap import linear
-from branca.element import MacroElement, Template
-import plotly.express as px
-import plotly.graph_objects as go
+# Importações de bibliotecas
+import streamlit as st  # Framework para criar aplicações web interativas de forma rápida.
+import pandas as pd  # Manipulação e análise de dados tabulares (DataFrames).
+import numpy as np  # Computação numérica eficiente com arrays multidimensionais.
+import geopandas as gpd  # Extensão do pandas para manipulação de dados geoespaciais.
+import folium  # Biblioteca para criar mapas interativos.
+from streamlit_folium import folium_static  # Integra mapas do folium com o Streamlit.
+from branca.colormap import linear  # Gera colormaps para visualizações em mapas.
+import plotly.express as px  # Cria gráficos interativos de forma simples e rápida.
+import plotly.graph_objects as go  # Cria gráficos personalizados e complexos com Plotly.
+import openai  # Integração com a API da OpenAI para uso de modelos de IA.
+import faiss  # Biblioteca para busca eficiente de vetores (útil para embeddings).
+import json  # Manipulação de dados no formato JSON.
+import os  # Interação com o sistema operacional (leitura de arquivos, variáveis de ambiente, etc.).
+from dotenv import load_dotenv  # Carrega variáveis de ambiente de um arquivo .env.
+import time  # Controle de tempo e delays no código.
+import ast  # Converte strings para objetos Python (útil para embeddings armazenados como strings).
 
 # Configurar o layout da página
-st.set_page_config(layout="wide", page_title="Velocidade de Internet nas Escolas São Paulo capital")
+st.set_page_config(layout="wide", page_title="Conectividade das Escolas de São Paulo capital")
 
 # --------------------------------------------------------------------
-# TOGGLE SWITCH MODERNO (substitui o radio antigo)
+# TOGGLE SWITCH MODERNO
 # --------------------------------------------------------------------
 col1, col2, col3 = st.columns([8, 8, 2])
 with col3:
@@ -34,69 +40,57 @@ with col3:
         div[role=radiogroup] > label > div:first-child {
             display: none;
         }
-
         /* Estilo do container do toggle (versão horizontal) */
         div[role=radiogroup] {
             background-color: #555;
             border-radius: 20px;
-            padding: 2px;  /* Reduz o padding */
+            padding: 2px;
             display: inline-flex;
             gap: 0;
             position: relative;
-            width: 80px;  /* Largura total do toggle */
-            height: 30px;  /* Altura total do toggle */
-            align-items: center;  /* Centraliza os ícones verticalmente */
+            width: 80px;
+            height: 30px;
+            align-items: center;
         }
-
         /* Estilo dos botões (sol e lua) */
         div[role=radiogroup] label {
             margin: 0;
-            padding: 4px 12px;  /* Ajusta o padding dos ícones */
+            padding: 4px 12px;
             cursor: pointer;
             z-index: 1;
             transition: color 0.3s;
-            font-size: 14px;  /* Tamanho dos ícones */
+            font-size: 14px;
             display: flex;
-            align-items: center;  /* Centraliza os ícones verticalmente */
-            justify-content: center;  /* Centraliza os ícones horizontalmente */
-            width: 50%;  /* Cada ícone ocupa metade do container */
+            align-items: center;
+            justify-content: center;
+            width: 50%;
         }
-
-        /* Ajuste específico para o ícone do sol (alinhar à esquerda) */
         div[role=radiogroup] label:first-child {
-            padding-left: 4px;  /* Alinha o sol à esquerda */
-            justify-content: flex-start;  /* Alinha o conteúdo à esquerda */
+            padding-left: 4px;
+            justify-content: flex-start;
         }
-
-        /* Ajuste específico para o ícone da lua (alinhar à direita) */
         div[role=radiogroup] label:last-child {
-            padding-right: 4px;  /* Alinha a lua à direita */
-            justify-content: flex-end;  /* Alinha o conteúdo à direita */
+            padding-right: 4px;
+            justify-content: flex-end;
         }
-
         /* Efeito de slider (parte deslizante) */
         div[role=radiogroup]:after {
             content: "";
             position: absolute;
-            width: 42px;  /* Largura do slider */
-            height: 34px;  /* Altura do slider */
-            background-color: #4CAF50;  /* Cor do slider */
+            width: 42px;
+            height: 34px;
+            background-color: #4CAF50;
             top: 3px;
             left: 3px;
             border-radius: 16px;
             transition: transform 0.3s;
         }
-
-        /* Movimento do slider baseado na seleção */
         input[value="☀️"]:checked ~ div[role=radiogroup]:after {
             transform: translateX(0);
         }
-
         input[value="🌙"]:checked ~ div[role=radiogroup]:after {
-            transform: translateX(38px);  /* Ajuste para o movimento */
+            transform: translateX(38px);
         }
-
-        /* Cor do texto quando selecionado */
         input:checked + label {
             color: white !important;
         }
@@ -105,22 +99,37 @@ with col3:
         unsafe_allow_html=True
     )
 
+
 # --------------------------------------------------------------------
 # DEFINIR AS VARIÁVEIS DE CORES CONFORME O TEMA SELECIONADO
 # --------------------------------------------------------------------
 if tema == "🌙":
     # Modo Escuro
-    plot_bgcolor = "#0e1118"    # Fundo dos gráficos
-    paper_bgcolor = "#0e1118"   # Fundo externo dos gráficos
-    font_color = "white"        # Cor dos textos, legendas e números
-    sidebar_bg = "#383838"      # Fundo da sidebar
+    plot_bgcolor = "#0e1118"
+    paper_bgcolor = "#0e1118"
+    font_color = "white"
+    sidebar_bg = "#383838"
+    input_bg = "#2d2d2d"
+    input_font_color = "white"
+    input_border = "1px solid #fff"
+    button_bg = "#4CAF50"
+    button_font_color = "white"
+    button_border = "1px solid #fff"
+    separator_color = "#555"
 else:
     # Modo Claro
     plot_bgcolor = "#ffffff"
     paper_bgcolor = "#ffffff"
-    font_color = "#000000"      # Textos do gráfico agora ficam pretos
-    sidebar_bg = "#fff9f9"      # Fundo off-white na sidebar
-    
+    font_color = "#000000"
+    sidebar_bg = "#fff9f9"
+    input_bg = "#ffffff"      # Fundo branco para a caixa de entrada
+    input_font_color = "#000000"
+    input_border = "1px solid #000"
+    button_bg = "#ffffff"      # Fundo branco para o botão
+    button_font_color = "#000000"
+    button_border = "1px solid #000"
+    separator_color = "#ccc"
+
 # Atualizar cores do toggle com base no tema
 st.markdown(
     f"""
@@ -137,25 +146,21 @@ st.markdown(
 )
 
 # --------------------------------------------------------------------
-# INJETAR CSS PARA ALTERAR O FUNDO DA APLICAÇÃO E DA SIDEBAR
+# INJETAR CSS PARA ALTERAR O FUNDO DA APLICAÇÃO, SIDEBAR E HEADER
 # --------------------------------------------------------------------
 st.markdown(
     f"""
     <style>
-    /* Definir cor de fundo e texto da aplicação */
     .stApp {{
         background-color: {plot_bgcolor} !important;
         color: {font_color} !important;
     }}
-    /* Alterar fundo da sidebar */
     [data-testid="stSidebar"] {{
         background-color: {sidebar_bg} !important;
     }}
-    /* Alterar cor dos textos na sidebar */
     [data-testid="stSidebar"] * {{
         color: {font_color} !important;
     }}
-    /* Alterar cor dos labels, escalas e legendas do gráfico */
     .plotly .main-svg {{
         color: {font_color} !important;
         fill: {font_color} !important;
@@ -165,15 +170,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --------------------------------------------------------------------
-# CSS PARA ALTERAR A COR DA BARRA SUPERIOR ("Running")
-# --------------------------------------------------------------------
 if tema == "🌙":
-    header_bg = "#383838"  # Modo escuro
+    header_bg = "#383838"
 else:
-    header_bg = "#fff9f9"  # Modo claro
+    header_bg = "#fff9f9"
 
-# Injetar CSS para alterar a cor do header com base no tema
 st.markdown(
     f"""
     <style>
@@ -185,6 +186,50 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# --------------------------------------------------------------------
+# CSS PARA A ÁREA DO CHAT
+# --------------------------------------------------------------------
+st.markdown(
+    f"""
+    <style>
+    /* Container centralizado para a área de chat */
+    .chat-container {{
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 10px;
+    }}
+    /* Estilo para o label "Digite sua pergunta:" */
+    label[for="user_input"],
+    div.stTextArea label {{
+        color: {font_color} !important;
+        font-size: 16px;
+        font-weight: 500;
+    }}
+    /* Estilo para a caixa de entrada (textarea) */
+    div.stTextArea textarea {{
+        background-color: {input_bg} !important;
+        color: {input_font_color} !important;
+        border: {input_border} !important;
+        border-radius: 8px !important;
+        padding: 10px !important;
+        width: 100%;
+    }}
+    /* Estilo para o botão "Enviar" */
+    div.stButton > button {{
+        background-color: {button_bg} !important;
+        color: {button_font_color} !important;
+        border: {button_border} !important;
+        border-radius: 8px !important;
+        padding: 8px 16px !important;
+    }}
+    /* Estilo para as linhas de separação entre mensagens */
+    hr {{
+        border: 1px solid #ccc !important;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # Exibir a nota logo abaixo do título com um componente nativo
 st.caption("Nota: Os dados aqui utilizados foram simulados. Não correspondem a realidade")
@@ -361,7 +406,7 @@ st.markdown(
 ####################################
 # MAPAS INTERATIVOS e VELOCÍMETROS
 ####################################
-st.title("Velocidade de Internet nas Escolas São Paulo capital")
+st.title("Conectividade das Escolas de São Paulo capital")
 
 # Define os tiles do mapa conforme o tema (claro ou escuro)
 tiles_map = 'cartodb positron' if tema == "☀️" else 'cartodb dark_matter'
@@ -717,7 +762,7 @@ with mapa_col2:
             column_config={
                 "Distrito": st.column_config.TextColumn(
                     "Distrito",
-                    width="medium",  # Define a largura da coluna
+                    width="small",  # Altere para "small" para uma largura menor
                 ),
                 "Velocidade": st.column_config.ProgressColumn(
                     "Velocidade (Mbps)",
@@ -808,3 +853,181 @@ folium.GeoJson(
     tooltip=folium.GeoJsonTooltip(fields=["NOME_DIST"], aliases=["Distrito: "]),
     on_click=on_click_distrito
 ).add_to(mapa_distritos)
+
+####################################
+# CHATBOT COM RAG - Versão Híbrida
+####################################
+
+# Carregar variáveis de ambiente
+load_dotenv("/.env", override=True)
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# ================== Carregar FAQ ==================
+@st.cache_data(show_spinner=True)
+def carregar_faq():
+    """Carrega o arquivo CSV de perguntas e respostas do FAQ, se existirem."""
+    file_path = "faq-chatbot/faq_data.csv" # Caminho relativo
+    
+    if os.path.exists(file_path):
+        faq_data = pd.read_csv(file_path, encoding="utf-8")
+        # Converte a coluna 'embedding' de volta de string para lista (caso esteja armazenada como string)
+        faq_data['embedding'] = faq_data['embedding'].apply(ast.literal_eval)
+    else:
+        st.error(f"O arquivo FAQ não foi encontrado no caminho: {file_path}")
+        faq_data = pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
+    
+    return faq_data
+
+faq_data = carregar_faq()
+df = pd.DataFrame(faq_data)
+
+# ================== Carregar Embeddings ==================
+@st.cache_data(show_spinner=True)
+def carregar_embeddings():
+    """Carrega os embeddings pré-computados do FAQ, se existirem."""
+    try:
+        with open("faq-chatbot/faq_embeddings.json", "r", encoding="utf-8") as f: # Caminho relativo
+            return json.load(f)
+    except FileNotFoundError:
+        return None
+
+faq_embeddings = carregar_embeddings()
+
+# ================== Gerar Embeddings ==================
+@st.cache_data(show_spinner=True)
+def gerar_embedding(texto):
+    """Gera embeddings para um determinado texto usando OpenAI."""
+    response = openai.embeddings.create(input=texto, model="text-embedding-3-small")
+    return response.data[0].embedding
+
+# Se os embeddings não existirem, criá-los
+if faq_embeddings is None:
+    faq_embeddings = {}
+    total_perguntas = len(df['pergunta'])
+    progress_bar = st.progress(0)  # Inicializa a barra de progresso
+    
+    for i, pergunta in enumerate(df['pergunta']):
+        faq_embeddings[pergunta] = gerar_embedding(pergunta)
+        # Atualiza a barra de progresso
+        progress_bar.progress((i + 1) / total_perguntas)
+        time.sleep(0.1)  # Simulando tempo de resposta para cada requisição (opcional)
+    
+    with open("faq-chatbot/faq_embeddings.json", "w", encoding="utf-8") as f:
+        json.dump(faq_embeddings, f, ensure_ascii=False, indent=4)
+
+# ================== Carregar FAISS Index ==================
+@st.cache_data(show_spinner=True)
+def carregar_faiss_index(caminho):
+    """Carrega o índice FAISS, se existir."""
+    if os.path.exists(caminho):
+        index = faiss.read_index(caminho)  # Carrega o índice FAISS
+        return index
+    else:
+        return None
+
+faq_index_path = "faq-chatbot/faq_index.faiss"  # Caminho relativo
+faq_index = carregar_faiss_index(faq_index_path)
+
+
+# Caso o índice não exista, cria-se um novo índice com normalização
+if faq_index is None:
+    # Supondo que os embeddings tenham dimensão 1536. Ajuste conforme necessário.
+    faq_index = faiss.IndexFlatL2(1536)
+    for pergunta, emb in faq_embeddings.items():
+        emb_array = np.array([emb], dtype=np.float32)
+        faiss.normalize_L2(emb_array)  # Normaliza o vetor
+        faq_index.add(emb_array)         # Adiciona o embedding normalizado ao índice FAISS
+    faiss.write_index(faq_index, faq_index_path)  # Salva o índice para reutilização
+
+# ================== Busca no FAQ com Similaridade ==================
+@st.cache_data(show_spinner=True)
+def buscar_resposta_faq(pergunta_usuario, max_palavras=150, limiar_distancia=0.5):
+    """Busca a resposta mais similar no FAQ com base em embeddings.
+       Retorna None se a distância for maior que o limiar."""
+    embedding_pergunta = np.array(gerar_embedding(pergunta_usuario)).reshape(1, -1).astype(np.float32)
+    faiss.normalize_L2(embedding_pergunta)  # Normaliza o embedding da pergunta do usuário
+    
+    distancias, indices = faq_index.search(embedding_pergunta, k=1)  # Busca no índice FAISS
+    # Para debug: st.write("Distância calculada:", distancias[0][0])
+    
+    # Se a distância for maior que o limiar, não há correspondência adequada no FAQ.
+    if distancias[0][0] > limiar_distancia:
+        return None
+    
+    melhor_pergunta = df.iloc[indices[0][0]]['pergunta']
+    melhor_resposta = df[df['pergunta'] == melhor_pergunta]['resposta'].values[0]
+    
+    return limitar_resposta(melhor_resposta, max_palavras)
+
+# ================== Limitar Resposta ==================
+@st.cache_data(show_spinner=True)
+def limitar_resposta(resposta, max_palavras):
+    palavras = resposta.split()
+    return ' '.join(palavras[:max_palavras]) + ('...' if len(palavras) > max_palavras else '')
+
+# ================== Busca Híbrida ==================
+@st.cache_data(show_spinner=False)
+def buscar_resposta_hibrida(pergunta_usuario, max_palavras=150):
+    resposta_faq = buscar_resposta_faq(pergunta_usuario, max_palavras)
+    if resposta_faq:
+        return resposta_faq  # Se a similaridade for alta, retorna a resposta do FAQ
+    
+    # Se não encontrar uma correspondência adequada, consulta o GPT-3.5-Turbo
+    contexto = (
+    "Você é um assistente educacional especializado em infraestrutura de internet escolar e educação em São Paulo. "
+    "Sua missão é fornecer respostas precisas, detalhadas e fundamentadas em dados reais e referências confiáveis. "
+    "Utilize as informações a seguir para embasar suas respostas, levando em conta tanto os desafios técnicos quanto as implicações pedagógicas:\n"
+    "\n"
+    "1. Conectividade e Qualidade de Internet:\n"
+    "- Segundo o NIC.br, 99% das escolas públicas de São Paulo estão conectadas à internet, embora a qualidade e a estabilidade dessas conexões possam variar, afetando a experiência de ensino e aprendizagem.\n"
+    "- Um levantamento do CGI.br apontou desafios significativos na qualidade da internet nas escolas, incluindo problemas de velocidade insuficiente e instabilidade, o que impede uma utilização plena das tecnologias digitais.\n"
+    "\n"
+    "2. Iniciativas e Metas Governamentais:\n"
+    "- O projeto 'Escolas Conectadas', divulgado pelo gov.br/SECOM, já levou acesso à internet a 1.046 instituições de ensino, marcando um importante avanço na democratização do acesso digital.\n"
+    "- O SPTIC indica que 1.927 escolas já possuem acesso à internet para uso pedagógico, mas ressalta a necessidade de melhorias contínuas na infraestrutura e na capacitação dos profissionais.\n"
+    "- O MEC definiu metas ambiciosas para garantir que todas as escolas tenham acesso a conexões de alta velocidade até 2025, incentivando investimentos em infraestrutura e na formação de professores.\n"
+    "\n"
+    "3. Educação e Integração Digital:\n"
+    "- Além da infraestrutura, é essencial promover a integração efetiva das tecnologias educacionais no currículo, garantindo que o acesso à internet seja utilizado para inovar práticas pedagógicas e melhorar a qualidade do ensino.\n"
+    "- A capacitação de professores e a criação de ambientes digitais interativos são fundamentais para transformar a conectividade em uma ferramenta de aprendizagem eficaz.\n"
+    "\n"
+    "4. Dados do Painel:\n"
+    "- Para perguntas que envolvem métricas, estatísticas ou categorias de velocidade (por exemplo, muito baixa, baixa, média e alta) e informações relacionadas ao IDEB, se esses dados não estiverem disponíveis no FAQ, informe que eles podem ser visualizados no próprio painel.\n"
+    "\n"
+    "Utilize essas informações para elaborar respostas que esclareçam os desafios e avanços na conectividade das escolas de São Paulo, considerando tanto os aspectos técnicos quanto as necessidades e inovações na área da educação."
+    )
+
+    resposta_gpt = openai.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": contexto},
+            {"role": "user", "content": pergunta_usuario}
+        ],
+        max_tokens=max_palavras * 2
+    )
+    
+    return limitar_resposta(resposta_gpt.choices[0].message.content, max_palavras)
+
+ # ================== Interface do Chatbot ==================
+
+st.title("Assistente de análise de dados do painel")
+
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+
+for user_message, bot_response in st.session_state.chat_history:
+    st.write(f"**Você:** {user_message}")
+    st.write(f"**Chatbot:** {bot_response}")
+    st.write("---")
+
+with st.container():
+    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+    user_input = st.text_area("Digite sua pergunta:", key="user_input", height=80)
+    submit_button = st.button("Enviar")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+if submit_button and user_input:
+    st.session_state.chat_history.append((user_input, "Processando..."))
+    resposta = buscar_resposta_hibrida(user_input)
+    st.session_state.chat_history[-1] = (user_input, resposta)
+    st.rerun()
