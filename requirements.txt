@@ -7,7 +7,6 @@ streamlit-folium
 branca
 plotly
 openAI
-json
 os
 dotenv
 time
