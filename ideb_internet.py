@@ -858,9 +858,11 @@ folium.GeoJson(
 # CHATBOT COM RAG - Versão Híbrida
 ####################################
 
-# Carregar variáveis de ambiente
-load_dotenv("/.env", override=True)
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Lê a chave da OpenAI das variáveis de ambiente do Github
+openai_api_key = os.getenv("OPENAI_API_KEY")
+
+# Define a chave na biblioteca da OpenAI
+openai.api_key = openai_api_key
 
 # ================== Carregar FAQ ==================
 @st.cache_data(show_spinner=True)
