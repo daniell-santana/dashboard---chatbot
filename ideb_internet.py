@@ -874,6 +874,10 @@ def carregar_faq():
         faq_data = pd.read_csv(file_path, encoding="utf-8")
         # Converte a coluna 'embedding' de volta de string para lista (caso esteja armazenada como string)
         faq_data['embedding'] = faq_data['embedding'].apply(ast.literal_eval)
+        # Verifica se a coluna 'pergunta' existe
+        if 'pergunta' not in faq_data.columns:
+            st.error("A coluna 'pergunta' não foi encontrada no arquivo CSV.")
+            return pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
     else:
         st.error(f"O arquivo FAQ não foi encontrado no caminho: {file_path}")
         faq_data = pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
@@ -892,7 +896,8 @@ def carregar_embeddings():
             return json.load(f)
     except FileNotFoundError:
         return None
-
+    
+# Carregar embeddings
 faq_embeddings = carregar_embeddings()
 
 # ================== Gerar Embeddings ==================
