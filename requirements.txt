@@ -6,4 +6,5 @@ folium
 streamlit-folium
 branca
 plotly
-openAI
+openai
+python-dotenv
