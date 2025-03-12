@@ -910,14 +910,16 @@ def gerar_embedding(texto):
 # Se os embeddings não existirem, criá-los
 if faq_embeddings is None:
     faq_embeddings = {}
-    total_perguntas = len(df['pergunta'])
+    # Usar as perguntas do DataFrame para gerar os embeddings
+    perguntas = df['pergunta'].tolist()  # Converte a coluna 'pergunta' em uma lista
+    total_perguntas = len(perguntas)
     progress_bar = st.progress(0)  # Inicializa a barra de progresso
     
-    for i, pergunta in enumerate(df['pergunta']):
+    for i, pergunta in enumerate(perguntas):
         faq_embeddings[pergunta] = gerar_embedding(pergunta)
         # Atualiza a barra de progresso
         progress_bar.progress((i + 1) / total_perguntas)
-        time.sleep(0.1)  # Simulando tempo de resposta para cada requisição (opcional)
+        time.sleep(0.1)  # Simulando tempo de resposta para cada requisição
     
     with open("faq-chatbot/faq_embeddings.json", "w", encoding="utf-8") as f:
         json.dump(faq_embeddings, f, ensure_ascii=False, indent=4)
