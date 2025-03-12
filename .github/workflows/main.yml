@@ -3,32 +3,32 @@ name: Run Python Script with Streamlit
 on:
   push:
     branches:
-      - main  # Executa o workflow quando houver um push para a branch main
+      - main
 
 jobs:
   run-script:
-    runs-on: ubuntu-latest  # Usa o sistema operacional Ubuntu mais recente
+    runs-on: ubuntu-latest
 
     steps:
-      # Passo 1: Faz checkout do repositório
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Passo 2: Configura o Python 3.12.0
       - name: Set up Python 3.12.0
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12.0'  # Use a versão do Python que você está usando
+          python-version: '3.12.0'
 
-      # Passo 3: Instala as dependências
+      - name: Install faiss
+        run: |
+          pip install faiss-cpu
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt  # Instala as dependências do projeto
+          pip install -r requirements.txt
 
-      # Passo 4: Executa o script Python
       - name: Run Python script
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}  # Injeta a chave como variável de ambiente
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          python ideb_internet.py  # Executa o seu script
+          python ideb_internet.py

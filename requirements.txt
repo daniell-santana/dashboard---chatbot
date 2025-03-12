@@ -6,10 +6,5 @@ folium
 streamlit-folium
 branca
 plotly
-openAI
-faiss
-json
-os
-dotenv
-time
-ast
+openai
+python-dotenv
