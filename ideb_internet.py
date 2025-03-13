@@ -871,7 +871,7 @@ def carregar_faq():
     file_path = "./faq_data.csv" # Caminho relativo
     
     if os.path.exists(file_path):
-        faq_data = pd.read_csv(file_path, encoding="utf-8")
+        faq_data = pd.read_csv(file_path, encoding="utf-8-sig", sep=",")
         # Converte a coluna 'embedding' de volta de string para lista (caso esteja armazenada como string)
         faq_data['embedding'] = faq_data['embedding'].apply(ast.literal_eval)
     else:
