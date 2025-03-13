@@ -899,11 +899,11 @@ df = pd.DataFrame(faq_data)
 def gerar_embedding(texto):
     """Gera embeddings usando o modelo text-embedding-3-small da OpenAI"""
     try:
-        response = openai.embeddings.create(
+        response = openai.Embedding.create(
             input=texto,
             model="text-embedding-3-small"
         )
-        return response.data[0].embedding
+        return response['data'][0]['embedding']  # Acesso ao embedding na resposta
     except Exception as e:
         st.error(f"Erro ao gerar embedding: {e}")
         return None
@@ -919,23 +919,30 @@ def carregar_embeddings():
         return None
     
     try:
+        # Abre o arquivo e carrega o JSON
         with open(file_path, "r", encoding="utf-8") as f:
             embeddings = json.load(f)
+            
+            # Verifica se o conteúdo é um dicionário
             if not isinstance(embeddings, dict):
-                st.error(f"Formato inválido em {file_path} (esperado: dicionário).")
+                st.error(f"O arquivo {file_path} não está no formato correto (esperado: dicionário).")
                 return None
+            
             return embeddings
     except json.JSONDecodeError as e:
-        st.error(f"Erro ao decodificar {file_path}: {e}")
+        st.error(f"Erro ao decodificar o arquivo {file_path}: {e}")
+        return None
+    except MemoryError:
+        st.error(f"Erro de memória: o arquivo {file_path} é muito grande para ser carregado.")
         return None
     except Exception as e:
-        st.error(f"Erro inesperado: {e}")
+        st.error(f"Erro inesperado ao carregar {file_path}: {e}")
         return None
 
-# Carregar embeddings (retorna None se o arquivo não existir)
+# Carregar embeddings (retorna None se o arquivo não existir ou houver erro)
 faq_embeddings = carregar_embeddings()
 
-# Se não existir, inicializa como dicionário vazio
+# Se não existir ou houver erro, inicializa como dicionário vazio
 if faq_embeddings is None:
     faq_embeddings = {}
 
@@ -964,6 +971,10 @@ if df is not None and not df.empty and 'pergunta' in df.columns and not faq_embe
         st.error(f"Falha ao gerar embeddings: {e}")
         st.stop()
 
+# Verifica se há embeddings disponíveis
+if not faq_embeddings:
+    st.error("Nenhum embedding foi carregado ou gerado. Verifique os dados ou a conexão com a API.")
+    st.stop()
 # ================== Carregar FAISS Index ==================
 @st.cache_data(show_spinner=True)
 def carregar_faiss_index(caminho):
