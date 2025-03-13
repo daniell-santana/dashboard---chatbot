@@ -950,31 +950,42 @@ if 'pergunta' in df.columns:
     # Salvar os embeddings no arquivo JSON
     with open("faq_embeddings.json", "w", encoding="utf-8") as f:
         json.dump(faq_embeddings, f, ensure_ascii=False, indent=4)
-        
+
 # ================== Carregar FAISS Index ==================
 @st.cache_data(show_spinner=True)
 def carregar_faiss_index(caminho):
     """Carrega o índice FAISS, se existir."""
     if os.path.exists(caminho):
-        index = faiss.read_index(caminho)  # Carrega o índice FAISS
-        return index
+        try:
+            index = faiss.read_index(caminho)
+            return index
+        except Exception as e:
+            st.error(f"Erro ao carregar o índice FAISS: {e}")
+            return None
     else:
+        st.warning(f"Arquivo de índice FAISS não encontrado em: {caminho}")
         return None
 
-faq_index_path = "faq_index.faiss"  # Caminho relativo
-faq_index = carregar_faiss_index(faq_index_path)
+# Define o caminho absoluto para o arquivo de índice
+faq_index_path = os.path.abspath("faq_index.faiss")
 
+# Carrega o índice FAISS
+faq_index = carregar_faiss_index(faq_index_path)
 
 # Caso o índice não exista, cria-se um novo índice com normalização
 if faq_index is None:
-    # Supondo que os embeddings tenham dimensão 1536. Ajuste conforme necessário.
-    faq_index = faiss.IndexFlatL2(1536)
+    # Verifica a dimensão dos embeddings
+    sample_emb = next(iter(faq_embeddings.values()))
+    dimension = len(sample_emb)
+    faq_index = faiss.IndexFlatL2(dimension)  # Cria um novo índice com a dimensão correta
     for pergunta, emb in faq_embeddings.items():
         emb_array = np.array([emb], dtype=np.float32)
-        faiss.normalize_L2(emb_array)  # Normaliza o vetor
-        faq_index.add(emb_array)         # Adiciona o embedding normalizado ao índice FAISS
+        norm = np.linalg.norm(emb_array)
+        if norm != 1.0:  # Verifica se o embedding já está normalizado
+            faiss.normalize_L2(emb_array)
+        faq_index.add(emb_array)  # Adiciona o embedding ao índice
     faiss.write_index(faq_index, faq_index_path)  # Salva o índice para reutilização
-
+    
 # ================== Busca no FAQ com Similaridade ==================
 @st.cache_data(show_spinner=True)
 def buscar_resposta_faq(pergunta_usuario, max_palavras=150, limiar_distancia=0.5):
