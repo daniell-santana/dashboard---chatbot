@@ -939,40 +939,42 @@ def carregar_embeddings():
         st.error(f"Erro inesperado ao carregar {file_path}: {e}")
         return None
 
+# ================== Gerar Embeddings ==================
+def gerar_e_salvar_embeddings(df):
+    """Gera embeddings para as perguntas do DataFrame e salva em um arquivo JSON."""
+    if df is None or df.empty or 'pergunta' not in df.columns:
+        st.error("DataFrame inválido ou coluna 'pergunta' não encontrada.")
+        return None
+    
+    embeddings = {}
+    perguntas = df['pergunta'].tolist()
+    total_perguntas = len(perguntas)
+    progress_bar = st.progress(0)
+    
+    for i, pergunta in enumerate(perguntas):
+        embedding = gerar_embedding(pergunta)
+        if embedding is not None:  # Verifica se o embedding foi gerado com sucesso
+            embeddings[pergunta] = embedding
+        progress_bar.progress((i + 1) / total_perguntas)
+        time.sleep(0.1)  # Simula um delay para evitar sobrecarregar a API
+    
+    # Salvar os embeddings no arquivo JSON
+    with open("faq_embeddings.json", "w", encoding="utf-8") as f:
+        json.dump(embeddings, f, ensure_ascii=False, indent=4)
+    
+    st.success("Embeddings gerados e salvos com sucesso!")
+    return embeddings
+
+# ================== Lógica Principal ==================
 # Carregar embeddings (retorna None se o arquivo não existir ou houver erro)
 faq_embeddings = carregar_embeddings()
 
-# Se não existir ou houver erro, inicializa como dicionário vazio
+# Se os embeddings não existirem, gerá-los
 if faq_embeddings is None:
-    faq_embeddings = {}
+    faq_embeddings = gerar_e_salvar_embeddings(df)
 
-# ================== Gerar Embeddings ==================
-if df is not None and not df.empty and 'pergunta' in df.columns and not faq_embeddings:
-    try:
-        perguntas = df['pergunta'].tolist()
-        total_perguntas = len(perguntas)
-        progress_bar = st.progress(0)
-        
-        for i, pergunta in enumerate(perguntas):
-            embedding = gerar_embedding(pergunta)
-            if embedding is not None:  # Verifica se o embedding foi gerado com sucesso
-                faq_embeddings[pergunta] = embedding
-            progress_bar.progress((i + 1) / total_perguntas)
-            time.sleep(0.1)
-        
-        # Salvar embeddings
-        with open("faq_embeddings.json", "w", encoding="utf-8") as f:
-            json.dump(faq_embeddings, f, ensure_ascii=False, indent=4)
-        
-        # Recarregar embeddings para garantir consistência
-        faq_embeddings = carregar_embeddings()
-        
-    except Exception as e:
-        st.error(f"Falha ao gerar embeddings: {e}")
-        st.stop()
-
-# Verifica se há embeddings disponíveis
-if not faq_embeddings:
+# Verifica se os embeddings foram carregados ou gerados corretamente
+if faq_embeddings is None or not faq_embeddings:
     st.error("Nenhum embedding foi carregado ou gerado. Verifique os dados ou a conexão com a API.")
     st.stop()
 # ================== Carregar FAISS Index ==================
