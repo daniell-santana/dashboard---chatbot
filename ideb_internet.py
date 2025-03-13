@@ -868,150 +868,79 @@ openai.api_key = openai_api_key
 @st.cache_data(show_spinner=True)
 def carregar_faq():
     """Carrega o arquivo CSV de perguntas e respostas do FAQ, se existirem."""
-    file_path = "faq_data.csv"  # Caminho relativo ao diretório raiz
+    file_path = "faq_data.csv" # Caminho relativo
     
     if os.path.exists(file_path):
-        # Carrega o CSV com o separador correto
-        faq_data = pd.read_csv(file_path, encoding="utf-8", sep=',')
-        
-        # Verifica se a coluna 'embedding' existe
-        if 'embedding' not in faq_data.columns:
-            st.error("A coluna 'embedding' não foi encontrada no arquivo CSV.")
-            return pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
-        
-        # Converte a coluna 'embedding' de string para lista
-        try:
-            faq_data['embedding'] = faq_data['embedding'].apply(ast.literal_eval)
-        except (ValueError, SyntaxError) as e:
-            st.error(f"Erro ao converter a coluna 'embedding': {e}")
-            return pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
+        faq_data = pd.read_csv(file_path, encoding="utf-8")
+        # Converte a coluna 'embedding' de volta de string para lista (caso esteja armazenada como string)
+        faq_data['embedding'] = faq_data['embedding'].apply(ast.literal_eval)
     else:
         st.error(f"O arquivo FAQ não foi encontrado no caminho: {file_path}")
-        return pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
+        faq_data = pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
     
     return faq_data
 
-# Carregar o FAQ
 faq_data = carregar_faq()
 df = pd.DataFrame(faq_data)
-
-# ================== Função para Gerar Embeddings ==================
-def gerar_embedding(texto):
-    """Gera embeddings usando o modelo text-embedding-3-small da OpenAI"""
-    try:
-        response = openai.Embedding.create(
-            input=texto,
-            model="text-embedding-3-small"
-        )
-        return response['data'][0]['embedding']  # Acesso ao embedding na resposta
-    except Exception as e:
-        st.error(f"Erro ao gerar embedding: {e}")
-        return None
 
 # ================== Carregar Embeddings ==================
 @st.cache_data(show_spinner=True)
 def carregar_embeddings():
     """Carrega os embeddings pré-computados do FAQ, se existirem."""
-    file_path = "faq_embeddings.json"
-    
-    if not os.path.exists(file_path):
-        st.warning(f"Arquivo {file_path} não encontrado. Gerando embeddings...")
-        return None
-    
     try:
-        # Abre o arquivo e carrega o JSON
-        with open(file_path, "r", encoding="utf-8") as f:
-            embeddings = json.load(f)
-            
-            # Verifica se o conteúdo é um dicionário
-            if not isinstance(embeddings, dict):
-                st.error(f"O arquivo {file_path} não está no formato correto (esperado: dicionário).")
-                return None
-            
-            return embeddings
-    except json.JSONDecodeError as e:
-        st.error(f"Erro ao decodificar o arquivo {file_path}: {e}")
-        return None
-    except MemoryError:
-        st.error(f"Erro de memória: o arquivo {file_path} é muito grande para ser carregado.")
-        return None
-    except Exception as e:
-        st.error(f"Erro inesperado ao carregar {file_path}: {e}")
+        with open("faq_embeddings.json", "r", encoding="utf-8") as f: # Caminho relativo
+            return json.load(f)
+    except FileNotFoundError:
         return None
 
-# ================== Gerar Embeddings ==================
-def gerar_e_salvar_embeddings(df):
-    """Gera embeddings para as perguntas do DataFrame e salva em um arquivo JSON."""
-    if df is None or df.empty or 'pergunta' not in df.columns:
-        st.error("DataFrame inválido ou coluna 'pergunta' não encontrada.")
-        return None
-    
-    embeddings = {}
-    perguntas = df['pergunta'].tolist()
-    total_perguntas = len(perguntas)
-    progress_bar = st.progress(0)
-    
-    for i, pergunta in enumerate(perguntas):
-        embedding = gerar_embedding(pergunta)
-        if embedding is not None:  # Verifica se o embedding foi gerado com sucesso
-            embeddings[pergunta] = embedding
-        progress_bar.progress((i + 1) / total_perguntas)
-        time.sleep(0.1)  # Simula um delay para evitar sobrecarregar a API
-    
-    # Salvar os embeddings no arquivo JSON
-    with open("faq_embeddings.json", "w", encoding="utf-8") as f:
-        json.dump(embeddings, f, ensure_ascii=False, indent=4)
-    
-    st.success("Embeddings gerados e salvos com sucesso!")
-    return embeddings
-
-# ================== Lógica Principal ==================
-# Carregar embeddings (retorna None se o arquivo não existir ou houver erro)
 faq_embeddings = carregar_embeddings()
 
-# Se os embeddings não existirem, gerá-los
-if faq_embeddings is None:
-    faq_embeddings = gerar_e_salvar_embeddings(df)
+# ================== Gerar Embeddings ==================
+@st.cache_data(show_spinner=True)
+def gerar_embedding(texto):
+    """Gera embeddings para um determinado texto usando OpenAI."""
+    response = openai.embeddings.create(input=texto, model="text-embedding-3-small")
+    return response.data[0].embedding
 
-# Verifica se os embeddings foram carregados ou gerados corretamente
-if faq_embeddings is None or not faq_embeddings:
-    st.error("Nenhum embedding foi carregado ou gerado. Verifique os dados ou a conexão com a API.")
-    st.stop()
+# Se os embeddings não existirem, criá-los
+if faq_embeddings is None:
+    faq_embeddings = {}
+    total_perguntas = len(df['pergunta'])
+    progress_bar = st.progress(0)  # Inicializa a barra de progresso
+    
+    for i, pergunta in enumerate(df['pergunta']):
+        faq_embeddings[pergunta] = gerar_embedding(pergunta)
+        # Atualiza a barra de progresso
+        progress_bar.progress((i + 1) / total_perguntas)
+        time.sleep(0.1)  # Simulando tempo de resposta para cada requisição (opcional)
+    
+    with open("faq_embeddings.json", "w", encoding="utf-8") as f:
+        json.dump(faq_embeddings, f, ensure_ascii=False, indent=4)
+
 # ================== Carregar FAISS Index ==================
 @st.cache_data(show_spinner=True)
 def carregar_faiss_index(caminho):
     """Carrega o índice FAISS, se existir."""
     if os.path.exists(caminho):
-        try:
-            index = faiss.read_index(caminho)
-            return index
-        except Exception as e:
-            st.error(f"Erro ao carregar o índice FAISS: {e}")
-            return None
+        index = faiss.read_index(caminho)  # Carrega o índice FAISS
+        return index
     else:
-        st.warning(f"Arquivo de índice FAISS não encontrado em: {caminho}")
         return None
 
-# Define o caminho absoluto para o arquivo de índice
-faq_index_path = os.path.abspath("faq_index.faiss")
-
-# Carrega o índice FAISS
+faq_index_path = "faq_index.faiss"  # Caminho relativo
 faq_index = carregar_faiss_index(faq_index_path)
+
 
 # Caso o índice não exista, cria-se um novo índice com normalização
 if faq_index is None:
-    # Verifica a dimensão dos embeddings
-    sample_emb = next(iter(faq_embeddings.values()))
-    dimension = len(sample_emb)
-    faq_index = faiss.IndexFlatL2(dimension)  # Cria um novo índice com a dimensão correta
+    # Supondo que os embeddings tenham dimensão 31641. Ajuste conforme necessário.
+    faq_index = faiss.IndexFlatL2(31641)
     for pergunta, emb in faq_embeddings.items():
         emb_array = np.array([emb], dtype=np.float32)
-        norm = np.linalg.norm(emb_array)
-        if norm != 1.0:  # Verifica se o embedding já está normalizado
-            faiss.normalize_L2(emb_array)
-        faq_index.add(emb_array)  # Adiciona o embedding ao índice
+        faiss.normalize_L2(emb_array)  # Normaliza o vetor
+        faq_index.add(emb_array)         # Adiciona o embedding normalizado ao índice FAISS
     faiss.write_index(faq_index, faq_index_path)  # Salva o índice para reutilização
-    
+
 # ================== Busca no FAQ com Similaridade ==================
 @st.cache_data(show_spinner=True)
 def buscar_resposta_faq(pergunta_usuario, max_palavras=150, limiar_distancia=0.5):
