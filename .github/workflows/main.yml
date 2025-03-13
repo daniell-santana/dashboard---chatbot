@@ -21,14 +21,18 @@ jobs:
       - name: Install faiss
         run: |
           pip install faiss-cpu
+        working-directory: .
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+        working-directory: .
 
       - name: Run Python script
+        working-directory: .
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           python ideb_internet.py
+
