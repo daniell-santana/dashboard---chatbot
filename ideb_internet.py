@@ -8,7 +8,7 @@ from streamlit_folium import folium_static  # Integra mapas do folium com o Stre
 from branca.colormap import linear  # Gera colormaps para visualizações em mapas.
 import plotly.express as px  # Cria gráficos interativos de forma simples e rápida.
 import plotly.graph_objects as go  # Cria gráficos personalizados e complexos com Plotly.
-import openai  # Integração com a API da OpenAI para uso de modelos de IA.
+import openai # Integração com a API da OpenAI para uso de modelos de IA
 import faiss  # Biblioteca para busca eficiente de vetores (útil para embeddings).
 import json  # Manipulação de dados no formato JSON.
 import os  # Interação com o sistema operacional (leitura de arquivos, variáveis de ambiente, etc.).
@@ -895,61 +895,74 @@ def carregar_faq():
 faq_data = carregar_faq()
 df = pd.DataFrame(faq_data)
 
+# ================== Função para Gerar Embeddings ==================
+def gerar_embedding(texto):
+    """Gera embeddings usando o modelo text-embedding-3-small da OpenAI"""
+    try:
+        response = openai.embeddings.create(
+            input=texto,
+            model="text-embedding-3-small"
+        )
+        return response.data[0].embedding
+    except Exception as e:
+        st.error(f"Erro ao gerar embedding: {e}")
+        return None
+
 # ================== Carregar Embeddings ==================
 @st.cache_data(show_spinner=True)
 def carregar_embeddings():
     """Carrega os embeddings pré-computados do FAQ, se existirem."""
-    file_path = "faq_embeddings.json"  # Caminho relativo ao diretório raiz
+    file_path = "faq_embeddings.json"
     
-    # Verifica se o arquivo existe
     if not os.path.exists(file_path):
-        st.warning(f"O arquivo {file_path} não foi encontrado. Gerando embeddings...")
+        st.warning(f"Arquivo {file_path} não encontrado. Gerando embeddings...")
         return None
     
     try:
-        # Tenta abrir e carregar o arquivo JSON
         with open(file_path, "r", encoding="utf-8") as f:
             embeddings = json.load(f)
-            
-            # Verifica se o conteúdo é um dicionário
             if not isinstance(embeddings, dict):
-                st.error(f"O arquivo {file_path} não está no formato correto (esperado: dicionário).")
+                st.error(f"Formato inválido em {file_path} (esperado: dicionário).")
                 return None
-            
             return embeddings
     except json.JSONDecodeError as e:
-        st.error(f"Erro ao decodificar o arquivo {file_path}: {e}")
+        st.error(f"Erro ao decodificar {file_path}: {e}")
         return None
     except Exception as e:
-        st.error(f"Erro inesperado ao carregar {file_path}: {e}")
+        st.error(f"Erro inesperado: {e}")
         return None
 
-# Carregar embeddings
+# Carregar embeddings (retorna None se o arquivo não existir)
 faq_embeddings = carregar_embeddings()
 
+# Se não existir, inicializa como dicionário vazio
+if faq_embeddings is None:
+    faq_embeddings = {}
 
 # ================== Gerar Embeddings ==================
-@st.cache_data(show_spinner=True)
-def gerar_embedding(texto):
-    """Gera embeddings para um determinado texto usando OpenAI."""
-    response = openai.embeddings.create(input=texto, model="text-embedding-3-small")
-    return response.data[0].embedding
-
-# Se os embeddings não existirem, criá-los
-if 'pergunta' in df.columns:
-    perguntas = df['pergunta'].tolist()  # Converte a coluna 'pergunta' em uma lista
-    total_perguntas = len(perguntas)
-    progress_bar = st.progress(0)  # Inicializa a barra de progresso
-    
-    for i, pergunta in enumerate(perguntas):
-        faq_embeddings[pergunta] = gerar_embedding(pergunta)
-        # Atualiza a barra de progresso
-        progress_bar.progress((i + 1) / total_perguntas)
-        time.sleep(0.1)  # Simulando tempo de resposta para cada requisição (opcional)
-    
-    # Salvar os embeddings no arquivo JSON
-    with open("faq_embeddings.json", "w", encoding="utf-8") as f:
-        json.dump(faq_embeddings, f, ensure_ascii=False, indent=4)
+if df is not None and not df.empty and 'pergunta' in df.columns and not faq_embeddings:
+    try:
+        perguntas = df['pergunta'].tolist()
+        total_perguntas = len(perguntas)
+        progress_bar = st.progress(0)
+        
+        for i, pergunta in enumerate(perguntas):
+            embedding = gerar_embedding(pergunta)
+            if embedding is not None:  # Verifica se o embedding foi gerado com sucesso
+                faq_embeddings[pergunta] = embedding
+            progress_bar.progress((i + 1) / total_perguntas)
+            time.sleep(0.1)
+        
+        # Salvar embeddings
+        with open("faq_embeddings.json", "w", encoding="utf-8") as f:
+            json.dump(faq_embeddings, f, ensure_ascii=False, indent=4)
+        
+        # Recarregar embeddings para garantir consistência
+        faq_embeddings = carregar_embeddings()
+        
+    except Exception as e:
+        st.error(f"Falha ao gerar embeddings: {e}")
+        st.stop()
 
 # ================== Carregar FAISS Index ==================
 @st.cache_data(show_spinner=True)
