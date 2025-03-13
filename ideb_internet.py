@@ -868,7 +868,7 @@ openai.api_key = openai_api_key
 @st.cache_data(show_spinner=True)
 def carregar_faq():
     """Carrega o arquivo CSV de perguntas e respostas do FAQ, se existirem."""
-    file_path = "faq_data.csv" # Caminho relativo
+    file_path = "./faq_data.csv" # Caminho relativo
     
     if os.path.exists(file_path):
         faq_data = pd.read_csv(file_path, encoding="utf-8")
@@ -888,7 +888,7 @@ df = pd.DataFrame(faq_data)
 def carregar_embeddings():
     """Carrega os embeddings pré-computados do FAQ, se existirem."""
     try:
-        with open("faq_embeddings.json", "r", encoding="utf-8") as f: # Caminho relativo
+        with open("./faq_embeddings.json", "r", encoding="utf-8") as f: # Caminho relativo
             return json.load(f)
     except FileNotFoundError:
         return None
@@ -914,7 +914,7 @@ if faq_embeddings is None:
         progress_bar.progress((i + 1) / total_perguntas)
         time.sleep(0.1)  # Simulando tempo de resposta para cada requisição (opcional)
     
-    with open("faq_embeddings.json", "w", encoding="utf-8") as f:
+    with open("./faq_embeddings.json", "w", encoding="utf-8") as f:
         json.dump(faq_embeddings, f, ensure_ascii=False, indent=4)
 
 # ================== Carregar FAISS Index ==================
@@ -927,9 +927,8 @@ def carregar_faiss_index(caminho):
     else:
         return None
 
-faq_index_path = "faq_index.faiss"  # Caminho relativo
+faq_index_path = "./faq_index.faiss"  # Caminho relativo
 faq_index = carregar_faiss_index(faq_index_path)
-
 
 # Caso o índice não exista, cria-se um novo índice com normalização
 if faq_index is None:
