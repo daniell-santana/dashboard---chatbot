@@ -19,6 +19,42 @@ import ast  # Converte strings para objetos Python (útil para embeddings armaze
 # Configurar o layout da página
 st.set_page_config(layout="wide", page_title="Conectividade das Escolas de São Paulo capital")
 
+# Função cacheada para obter as cores do tema
+@st.cache_data
+def get_theme_colors(tema):
+    if tema == "🌙":
+        # Modo Escuro
+        return {
+            "plot_bgcolor": "#0e1118",
+            "paper_bgcolor": "#0e1118",
+            "font_color": "white",
+            "sidebar_bg": "#383838",
+            "input_bg": "#2d2d2d",
+            "input_font_color": "white",
+            "input_border": "1px solid #fff",
+            "button_bg": "#4CAF50",
+            "button_font_color": "white",
+            "button_border": "1px solid #fff",
+            "separator_color": "#555",
+            "header_bg": "#383838"
+        }
+    else:
+        # Modo Claro
+        return {
+            "plot_bgcolor": "#ffffff",
+            "paper_bgcolor": "#ffffff",
+            "font_color": "#000000",
+            "sidebar_bg": "#fff9f9",
+            "input_bg": "#ffffff",
+            "input_font_color": "#000000",
+            "input_border": "1px solid #000",
+            "button_bg": "#ffffff",
+            "button_font_color": "#000000",
+            "button_border": "1px solid #000",
+            "separator_color": "#ccc",
+            "header_bg": "#fff9f9"
+        }
+
 # --------------------------------------------------------------------
 # TOGGLE SWITCH MODERNO
 # --------------------------------------------------------------------
@@ -99,46 +135,20 @@ with col3:
         unsafe_allow_html=True
     )
 
+# Obter as cores do tema utilizando a função cacheada
+theme_colors = get_theme_colors(tema)
 
 # --------------------------------------------------------------------
-# DEFINIR AS VARIÁVEIS DE CORES CONFORME O TEMA SELECIONADO
+# INJETAR CSS PARA ATUALIZAR O TOGGLE COM BASE NO TEMA
 # --------------------------------------------------------------------
-if tema == "🌙":
-    # Modo Escuro
-    plot_bgcolor = "#0e1118"
-    paper_bgcolor = "#0e1118"
-    font_color = "white"
-    sidebar_bg = "#383838"
-    input_bg = "#2d2d2d"
-    input_font_color = "white"
-    input_border = "1px solid #fff"
-    button_bg = "#4CAF50"
-    button_font_color = "white"
-    button_border = "1px solid #fff"
-    separator_color = "#555"
-else:
-    # Modo Claro
-    plot_bgcolor = "#ffffff"
-    paper_bgcolor = "#ffffff"
-    font_color = "#000000"
-    sidebar_bg = "#fff9f9"
-    input_bg = "#ffffff"      # Fundo branco para a caixa de entrada
-    input_font_color = "#000000"
-    input_border = "1px solid #000"
-    button_bg = "#ffffff"      # Fundo branco para o botão
-    button_font_color = "#000000"
-    button_border = "1px solid #000"
-    separator_color = "#ccc"
-
-# Atualizar cores do toggle com base no tema
 st.markdown(
     f"""
     <style>
     div[role=radiogroup] {{
-        background-color: {sidebar_bg if tema == "🌙" else "#f0f0f0"};
+        background-color: {theme_colors['sidebar_bg'] if tema == "🌙" else "#f0f0f0"};
     }}
     div[role=radiogroup]:after {{
-        background-color: {font_color};
+        background-color: {theme_colors['font_color']};
     }}
     </style>
     """,
@@ -152,34 +162,29 @@ st.markdown(
     f"""
     <style>
     .stApp {{
-        background-color: {plot_bgcolor} !important;
-        color: {font_color} !important;
+        background-color: {theme_colors['plot_bgcolor']} !important;
+        color: {theme_colors['font_color']} !important;
     }}
     [data-testid="stSidebar"] {{
-        background-color: {sidebar_bg} !important;
+        background-color: {theme_colors['sidebar_bg']} !important;
     }}
     [data-testid="stSidebar"] * {{
-        color: {font_color} !important;
+        color: {theme_colors['font_color']} !important;
     }}
     .plotly .main-svg {{
-        color: {font_color} !important;
-        fill: {font_color} !important;
+        color: {theme_colors['font_color']} !important;
+        fill: {theme_colors['font_color']} !important;
     }}
     </style>
     """,
     unsafe_allow_html=True
 )
 
-if tema == "🌙":
-    header_bg = "#383838"
-else:
-    header_bg = "#fff9f9"
-
 st.markdown(
     f"""
     <style>
     [data-testid="stHeader"] {{
-        background-color: {header_bg};
+        background-color: {theme_colors['header_bg']};
     }}
     </style>
     """,
@@ -201,24 +206,24 @@ st.markdown(
     /* Estilo para o label "Digite sua pergunta:" */
     label[for="user_input"],
     div.stTextArea label {{
-        color: {font_color} !important;
+        color: {theme_colors['font_color']} !important;
         font-size: 16px;
         font-weight: 500;
     }}
     /* Estilo para a caixa de entrada (textarea) */
     div.stTextArea textarea {{
-        background-color: {input_bg} !important;
-        color: {input_font_color} !important;
-        border: {input_border} !important;
+        background-color: {theme_colors['input_bg']} !important;
+        color: {theme_colors['input_font_color']} !important;
+        border: {theme_colors['input_border']} !important;
         border-radius: 8px !important;
         padding: 10px !important;
         width: 100%;
     }}
     /* Estilo para o botão "Enviar" */
     div.stButton > button {{
-        background-color: {button_bg} !important;
-        color: {button_font_color} !important;
-        border: {button_border} !important;
+        background-color: {theme_colors['button_bg']} !important;
+        color: {theme_colors['button_font_color']} !important;
+        border: {theme_colors['button_border']} !important;
         border-radius: 8px !important;
         padding: 8px 16px !important;
     }}
@@ -254,7 +259,7 @@ def load_escolas():
 
 @st.cache_data
 def load_distritos_shapefile():
-    shp_path = "LAYER_DISTRITO/DEINFO_DISTRITO.shp"  # Caminho relativo
+    shp_path = "data/DEINFO_DISTRITO.shp"  # Caminho relativo
     gdf = gpd.read_file(shp_path)
     if gdf.crs is None or gdf.crs.to_epsg() != 29193:
         gdf.set_crs(epsg=29193, inplace=True)
@@ -266,7 +271,7 @@ def load_distritos_shapefile():
 
 # Carregar os dados
 # Carregar o arquivo GeoJSON do Distrito de Sao Paulo
-sao_paulo_gdf = gpd.read_file("LAYER_DISTRITO/geojs-35-mun.json")
+sao_paulo_gdf = gpd.read_file("data/geojs-35-mun.json")
 escolas = load_escolas()
 distritos_gdf = load_distritos_shapefile()
 
@@ -442,7 +447,8 @@ categorias = {
 }
 
 # Função para criar o velocímetro
-def criar_velocimetro(valor, valor_referencia, categorias, cores, titulo):
+# Função para criar o velocímetro (agora recebendo o theme_colors)
+def criar_velocimetro(valor, valor_referencia, categorias, cores, titulo, theme_colors):
     # Determinar a cor com base no valor
     if valor <= categorias["Muito Baixa"]:
         cor = cores["Muito Baixa"]
@@ -456,22 +462,27 @@ def criar_velocimetro(valor, valor_referencia, categorias, cores, titulo):
     # Determinar a seta (para cima ou para baixo)
     seta = "▲" if valor > valor_referencia else "▼"
     
-    # Criar o velocímetro
+    # Criar o velocímetro utilizando os valores do theme_colors
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=valor,
         number={
             'suffix': " Mbps",
-            'font': {'size': 24, 'color': font_color},
+            'font': {'size': 24, 'color': theme_colors['font_color']},
             'valueformat': '.2f',  # Formato com duas casas decimais
         },
         title={
             'text': f"{titulo}<br>{seta}",  # Título com a seta
-            'font': {'size': 12, 'color': font_color},
+            'font': {'size': 12, 'color': theme_colors['font_color']},
         },
         gauge={
-            'axis': {'range': [0, categorias["Alta"]], 'tickwidth': 1, 'tickcolor': "darkblue", 'tickfont': {'color': font_color}},
-            'bar': {'color': 'rgba(0,0,0,0)'},  # Barra transparente (sem sobreposição)
+            'axis': {
+                'range': [0, categorias["Alta"]],
+                'tickwidth': 1,
+                'tickcolor': "darkblue",
+                'tickfont': {'color': theme_colors['font_color']}
+            },
+            'bar': {'color': 'rgba(0,0,0,0)'},  # Barra transparente
             'steps': [
                 {'range': [0, categorias["Muito Baixa"]], 'color': cores["Muito Baixa"], 'name': 'Muito Baixa'},
                 {'range': [categorias["Muito Baixa"], categorias["Baixa"]], 'color': cores["Baixa"], 'name': 'Baixa'},
@@ -483,14 +494,14 @@ def criar_velocimetro(valor, valor_referencia, categorias, cores, titulo):
                 'thickness': 0.75,
                 'value': valor
             },
-            'bgcolor': plot_bgcolor,  # Fundo do velocímetro
+            'bgcolor': theme_colors['plot_bgcolor'],  # Fundo do velocímetro
         }
     ))
     fig.update_layout(
-        paper_bgcolor=paper_bgcolor,  # Fundo externo do gráfico
-        font={'color': font_color},   # Cor dos textos
-        margin=dict(t=35, b=15),      # Reduzir margens para diminuir o tamanho
-        height=200,                   # Altura do gráfico
+        paper_bgcolor=theme_colors['paper_bgcolor'],  # Fundo externo do gráfico
+        font={'color': theme_colors['font_color']},     # Cor dos textos
+        margin=dict(t=35, b=15),                        # Margens reduzidas
+        height=200,                                     # Altura do gráfico
     )
     return fig
 
@@ -795,28 +806,28 @@ fig = px.scatter(
 
 # Ajustar layout do gráfico
 fig.update_layout(
-    plot_bgcolor=plot_bgcolor,
-    paper_bgcolor=paper_bgcolor,
-    font=dict(color=font_color),  # Ajusta a cor de todos os textos do gráfico
+    plot_bgcolor=theme_colors['plot_bgcolor'],
+    paper_bgcolor=theme_colors['paper_bgcolor'],
+    font=dict(color=theme_colors['font_color']),  # Cor dos textos do gráfico
     xaxis=dict(
-        tickfont=dict(color=font_color),
-        title=dict(text="IDEB", font=dict(color=font_color)),  # Título do eixo X
+        tickfont=dict(color=theme_colors['font_color']),
+        title=dict(text="IDEB", font=dict(color=theme_colors['font_color'])),
     ),
     yaxis=dict(
-        tickfont=dict(color=font_color),
-        title=dict(text="Velocidade da Internet (Mbps)", font=dict(color=font_color))  # Título do eixo Y
+        tickfont=dict(color=theme_colors['font_color']),
+        title=dict(text="Velocidade da Internet (Mbps)", font=dict(color=theme_colors['font_color']))
     ),
     legend=dict(
-        font=dict(color=font_color),
-        title=dict(text="Legenda", font=dict(color=font_color))  # Corrige a cor do título da legenda
+        font=dict(color=theme_colors['font_color']),
+        title=dict(text="Legenda", font=dict(color=theme_colors['font_color']))
     ),
-    coloraxis_colorbar=dict(  # Corrigindo a chave
-        title=dict(text="Velocidade (Mbps)", font=dict(color=font_color)),  # Título da escala
-        title_side='right',  # Posiciona o título da escala na vertical
-        orientation='v',  # Orientação vertical da barra de cores
-        yanchor='middle',  # Centraliza o título verticalmente
-        y=0.5,  # Ajusta a posição do título
-        tickfont=dict(color=font_color)  # Cor dos valores da escala
+    coloraxis_colorbar=dict(
+        title=dict(text="Velocidade (Mbps)", font=dict(color=theme_colors['font_color'])),
+        title_side='right',
+        orientation='v',
+        yanchor='middle',
+        y=0.5,
+        tickfont=dict(color=theme_colors['font_color'])
     ),
     height=700,
     width=900,
@@ -859,41 +870,66 @@ folium.GeoJson(
 ####################################
 
 # Lê a chave da OpenAI das variáveis de ambiente do Github
-openai_api_key = os.getenv("OPENAI_API_KEY")
+openai_api_key = os.getenv('OPENAI_API_KEY')
 
 # Define a chave na biblioteca da OpenAI
 openai.api_key = openai_api_key
 
-# ================== Carregar FAQ ==================
+# ================== Funções com Cache ======================================================
+
+# ================== Carregar FAQ Particionado ==================
 @st.cache_data(show_spinner=True)
-def carregar_faq():
-    """Carrega o arquivo CSV de perguntas e respostas do FAQ, se existirem."""
-    file_path = "./faq_data.csv" # Caminho relativo
+def carregar_faq_parte(parte):
+    """Carrega uma parte específica do arquivo Parquet de perguntas e respostas do FAQ."""
+    file_path = f"data/faq_data_part{parte}.parquet"  # Caminho relativo para a parte
     
     if os.path.exists(file_path):
-        faq_data = pd.read_csv(file_path, encoding="utf-8-sig", sep=",")
-        # Converte a coluna 'embedding' de volta de string para lista (caso esteja armazenada como string)
-        faq_data['embedding'] = faq_data['embedding'].apply(ast.literal_eval)
+        faq_data = pd.read_parquet(file_path)  # Carrega a parte do FAQ
+        
+        # Se a coluna 'embedding' estiver armazenada como string, converter para lista
+        if 'embedding' in faq_data.columns:
+            faq_data['embedding'] = faq_data['embedding'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
     else:
-        st.error(f"O arquivo FAQ não foi encontrado no caminho: {file_path}")
+        st.error(f"O arquivo FAQ parte {parte} não foi encontrado no caminho: {file_path}")
         faq_data = pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
     
     return faq_data
 
-faq_data = carregar_faq()
-df = pd.DataFrame(faq_data)
+#-- Função para determinar a parte relevante com base na pergunta
+def determinar_parte(pergunta_usuario):
+    """Determina a parte relevante do FAQ com base no primeiro caractere da pergunta."""
+    primeira_letra = pergunta_usuario[0].lower()
+    if primeira_letra in 'abcdef':
+        return 1
+    elif primeira_letra in 'ghijkl':
+        return 2
+    elif primeira_letra in 'mnopqr':
+        return 3
+    elif primeira_letra in 'stuvwx':
+        return 4
+    else:
+        return 5  # Parte padrão para outras letras
 
-# ================== Carregar Embeddings ==================
+# ================== Carregar Embeddings Particionados ==================
 @st.cache_data(show_spinner=True)
-def carregar_embeddings():
-    """Carrega os embeddings pré-computados do FAQ, se existirem."""
+def carregar_embeddings_parte(parte):
+    """Carrega os embeddings pré-computados de uma parte específica do FAQ."""
     try:
-        with open("./faq_embeddings.json", "r", encoding="utf-8") as f: # Caminho relativo
+        with open(f"data/faq_embeddings_part{parte}.json", "r", encoding="utf-8") as f:  # Caminho relativo para a parte
             return json.load(f)
     except FileNotFoundError:
         return None
 
-faq_embeddings = carregar_embeddings()
+# ================== Carregar FAISS Index Particionado ==================
+@st.cache_data(show_spinner=True)
+def carregar_faiss_index_parte(parte):
+    """Carrega o índice FAISS de uma parte específica do FAQ."""
+    caminho = f"data/faq_index_part{parte}.faiss"  # Caminho relativo para a parte
+    if os.path.exists(caminho):
+        index = faiss.read_index(caminho)  # Carrega o índice FAISS
+        return index
+    else:
+        return None
 
 # ================== Gerar Embeddings ==================
 @st.cache_data(show_spinner=True)
@@ -902,73 +938,69 @@ def gerar_embedding(texto):
     response = openai.embeddings.create(input=texto, model="text-embedding-3-small")
     return response.data[0].embedding
 
-# Se os embeddings não existirem, criá-los
-if faq_embeddings is None:
-    faq_embeddings = {}
-    total_perguntas = len(df['pergunta'])
-    progress_bar = st.progress(0)  # Inicializa a barra de progresso
-    
-    for i, pergunta in enumerate(df['pergunta']):
-        faq_embeddings[pergunta] = gerar_embedding(pergunta)
-        # Atualiza a barra de progresso
-        progress_bar.progress((i + 1) / total_perguntas)
-        time.sleep(0.1)  # Simulando tempo de resposta para cada requisição (opcional)
-    
-    with open("./faq_embeddings.json", "w", encoding="utf-8") as f:
-        json.dump(faq_embeddings, f, ensure_ascii=False, indent=4)
-
-# ================== Carregar FAISS Index ==================
-@st.cache_data(show_spinner=True)
-def carregar_faiss_index(caminho):
-    """Carrega o índice FAISS, se existir."""
-    if os.path.exists(caminho):
-        index = faiss.read_index(caminho)  # Carrega o índice FAISS
-        return index
-    else:
-        return None
-
-faq_index_path = "./faq_index.faiss"  # Caminho relativo
-faq_index = carregar_faiss_index(faq_index_path)
-
-# Caso o índice não exista, cria-se um novo índice com normalização
-if faq_index is None:
-    # Supondo que os embeddings tenham dimensão 31641. Ajuste conforme necessário.
-    faq_index = faiss.IndexFlatL2(31641)
-    for pergunta, emb in faq_embeddings.items():
-        emb_array = np.array([emb], dtype=np.float32)
-        faiss.normalize_L2(emb_array)  # Normaliza o vetor
-        faq_index.add(emb_array)         # Adiciona o embedding normalizado ao índice FAISS
-    faiss.write_index(faq_index, faq_index_path)  # Salva o índice para reutilização
-
-# ================== Busca no FAQ com Similaridade ==================
-@st.cache_data(show_spinner=True)
-def buscar_resposta_faq(pergunta_usuario, max_palavras=150, limiar_distancia=0.5):
-    """Busca a resposta mais similar no FAQ com base em embeddings.
-       Retorna None se a distância for maior que o limiar."""
-    embedding_pergunta = np.array(gerar_embedding(pergunta_usuario)).reshape(1, -1).astype(np.float32)
-    faiss.normalize_L2(embedding_pergunta)  # Normaliza o embedding da pergunta do usuário
-    
-    distancias, indices = faq_index.search(embedding_pergunta, k=1)  # Busca no índice FAISS
-    # Para debug: st.write("Distância calculada:", distancias[0][0])
-    
-    # Se a distância for maior que o limiar, não há correspondência adequada no FAQ.
-    if distancias[0][0] > limiar_distancia:
-        return None
-    
-    melhor_pergunta = df.iloc[indices[0][0]]['pergunta']
-    melhor_resposta = df[df['pergunta'] == melhor_pergunta]['resposta'].values[0]
-    
-    return limitar_resposta(melhor_resposta, max_palavras)
-
 # ================== Limitar Resposta ==================
 @st.cache_data(show_spinner=True)
 def limitar_resposta(resposta, max_palavras):
+    """Limita o número de palavras na resposta."""
     palavras = resposta.split()
     return ' '.join(palavras[:max_palavras]) + ('...' if len(palavras) > max_palavras else '')
 
+# ================== Inicialização do Session State ==================
+if "faq_data" not in st.session_state:
+    st.session_state.faq_data = None  # Será carregado sob demanda
+
+if "faq_embeddings" not in st.session_state:
+    st.session_state.faq_embeddings = None  # Será carregado sob demanda
+
+if "faq_index" not in st.session_state:
+    st.session_state.faq_index = None  # Será carregado sob demanda
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+if "embedding_cache" not in st.session_state:
+    st.session_state.embedding_cache = {}
+
+if "resposta_cache" not in st.session_state:
+    st.session_state.resposta_cache = {}
+
+# ================== Busca no FAQ por Similaridade ==================
+def buscar_resposta_faq(pergunta_usuario, max_palavras=200, limiar_distancia=0.2):
+    """Busca a resposta mais similar no FAQ com base em embeddings.
+       Retorna None se a distância for maior que o limiar."""
+    if pergunta_usuario in st.session_state.resposta_cache:
+        return st.session_state.resposta_cache[pergunta_usuario]
+    
+    #-- Determinar a parte relevante com base na pergunta
+    parte = determinar_parte(pergunta_usuario)
+    
+    #-- Carregar a parte relevante do FAQ, embeddings e índice FAISS
+    st.session_state.faq_data = carregar_faq_parte(parte)
+    st.session_state.faq_embeddings = carregar_embeddings_parte(parte)
+    st.session_state.faq_index = carregar_faiss_index_parte(parte)
+    
+    #-- Gerar embedding para a pergunta do usuário
+    embedding_pergunta = np.array(gerar_embedding(pergunta_usuario)).reshape(1, -1).astype(np.float32)
+    faiss.normalize_L2(embedding_pergunta)  # Normaliza o embedding da pergunta do usuário
+    
+    #-- Buscar no índice FAISS
+    distancias, indices = st.session_state.faq_index.search(embedding_pergunta, k=1)
+    
+    #-- Se a distância for maior que o limiar, não há correspondência adequada no FAQ.
+    if distancias[0][0] > limiar_distancia:
+        st.session_state.resposta_cache[pergunta_usuario] = None
+        return None
+    
+    #-- Retornar a resposta correspondente
+    melhor_pergunta = st.session_state.faq_data.iloc[indices[0][0]]['pergunta']
+    melhor_resposta = st.session_state.faq_data[st.session_state.faq_data['pergunta'] == melhor_pergunta]['resposta'].values[0]
+    resposta_limitada = limitar_resposta(melhor_resposta, max_palavras)
+    
+    st.session_state.resposta_cache[pergunta_usuario] = resposta_limitada
+    return resposta_limitada
 # ================== Busca Híbrida ==================
-@st.cache_data(show_spinner=False)
-def buscar_resposta_hibrida(pergunta_usuario, max_palavras=150):
+def buscar_resposta_hibrida(pergunta_usuario, max_palavras=200):
+    """Busca uma resposta híbrida, primeiro no FAQ e depois no GPT-3.5-Turbo."""
     resposta_faq = buscar_resposta_faq(pergunta_usuario, max_palavras)
     if resposta_faq:
         return resposta_faq  # Se a similaridade for alta, retorna a resposta do FAQ
@@ -993,7 +1025,7 @@ def buscar_resposta_hibrida(pergunta_usuario, max_palavras=150):
     "- A capacitação de professores e a criação de ambientes digitais interativos são fundamentais para transformar a conectividade em uma ferramenta de aprendizagem eficaz.\n"
     "\n"
     "4. Dados do Painel:\n"
-    "- Para perguntas que envolvem métricas, estatísticas ou categorias de velocidade (por exemplo, muito baixa, baixa, média e alta) e informações relacionadas ao IDEB, se esses dados não estiverem disponíveis no FAQ, informe que eles podem ser visualizados no próprio painel.\n"
+    "- Para perguntas que envolvem métricas, estatísticas, comparações numéricas e estatíticas ou categorias de velocidade (por exemplo, muito baixa, baixa, média e alta) e informações relacionadas ao IDEB, se esses dados não estiverem disponíveis no FAQ, informe que eles podem ser visualizados no próprio painel.\n"
     "\n"
     "Utilize essas informações para elaborar respostas que esclareçam os desafios e avanços na conectividade das escolas de São Paulo, considerando tanto os aspectos técnicos quanto as necessidades e inovações na área da educação."
     )
@@ -1009,24 +1041,23 @@ def buscar_resposta_hibrida(pergunta_usuario, max_palavras=150):
     
     return limitar_resposta(resposta_gpt.choices[0].message.content, max_palavras)
 
- # ================== Interface do Chatbot ==================
-
+# ================== Interface do Chatbot ==================
 st.title("Assistente de análise de dados do painel")
 
-if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
-
+# Exibir histórico do chat
 for user_message, bot_response in st.session_state.chat_history:
     st.write(f"**Você:** {user_message}")
     st.write(f"**Chatbot:** {bot_response}")
     st.write("---")
 
+# Entrada do usuário
 with st.container():
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     user_input = st.text_area("Digite sua pergunta:", key="user_input", height=80)
     submit_button = st.button("Enviar")
     st.markdown('</div>', unsafe_allow_html=True)
 
+# Processar a pergunta do usuário
 if submit_button and user_input:
     st.session_state.chat_history.append((user_input, "Processando..."))
     resposta = buscar_resposta_hibrida(user_input)
