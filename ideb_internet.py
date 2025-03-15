@@ -13,7 +13,6 @@ import faiss  # Biblioteca para busca eficiente de vetores (útil para embedding
 import json  # Manipulação de dados no formato JSON.
 import os  # Interação com o sistema operacional (leitura de arquivos, variáveis de ambiente, etc.).
 from dotenv import load_dotenv  # Carrega variáveis de ambiente de um arquivo .env.
-import time  # Controle de tempo e delays no código.
 import ast  # Converte strings para objetos Python (útil para embeddings armazenados como strings).
 
 # Configurar o layout da página
@@ -63,7 +62,7 @@ with col3:
     tema = st.radio(
         "", 
         ["☀️", "🌙"], 
-        index=0, 
+        index=1, 
         horizontal=True, 
         label_visibility="collapsed"  # Esconde o label padrão
     )
@@ -191,50 +190,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --------------------------------------------------------------------
-# CSS PARA A ÁREA DO CHAT
-# --------------------------------------------------------------------
-st.markdown(
-    f"""
-    <style>
-    /* Container centralizado para a área de chat */
-    .chat-container {{
-        max-width: 600px;
-        margin: 20px auto;
-        padding: 10px;
-    }}
-    /* Estilo para o label "Digite sua pergunta:" */
-    label[for="user_input"],
-    div.stTextArea label {{
-        color: {theme_colors['font_color']} !important;
-        font-size: 16px;
-        font-weight: 500;
-    }}
-    /* Estilo para a caixa de entrada (textarea) */
-    div.stTextArea textarea {{
-        background-color: {theme_colors['input_bg']} !important;
-        color: {theme_colors['input_font_color']} !important;
-        border: {theme_colors['input_border']} !important;
-        border-radius: 8px !important;
-        padding: 10px !important;
-        width: 100%;
-    }}
-    /* Estilo para o botão "Enviar" */
-    div.stButton > button {{
-        background-color: {theme_colors['button_bg']} !important;
-        color: {theme_colors['button_font_color']} !important;
-        border: {theme_colors['button_border']} !important;
-        border-radius: 8px !important;
-        padding: 8px 16px !important;
-    }}
-    /* Estilo para as linhas de separação entre mensagens */
-    hr {{
-        border: 1px solid #ccc !important;
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
 
 # Exibir a nota logo abaixo do título com um componente nativo
 st.caption("Nota: Os dados aqui utilizados foram simulados. Não correspondem a realidade")
@@ -271,7 +226,7 @@ def load_distritos_shapefile():
 
 # Carregar os dados
 # Carregar o arquivo GeoJSON do Distrito de Sao Paulo
-sao_paulo_gdf = gpd.read_file("data/geojs-35-mun.json")
+sao_paulo_gdf = gpd.read_file("data/geojs-35-mun.json", driver="GeoJSON")
 escolas = load_escolas()
 distritos_gdf = load_distritos_shapefile()
 
@@ -446,7 +401,7 @@ categorias = {
     "Alta": 100  # Definimos o limite máximo como 100 Mbps
 }
 
-# Função para criar o velocímetro
+
 # Função para criar o velocímetro (agora recebendo o theme_colors)
 def criar_velocimetro(valor, valor_referencia, categorias, cores, titulo, theme_colors):
     # Determinar a cor com base no valor
@@ -506,11 +461,12 @@ def criar_velocimetro(valor, valor_referencia, categorias, cores, titulo, theme_
     return fig
 
 # Criar os velocímetros
+# Não esquecer de passar o argumento 'theme_colors' para cada função
 velocimetro_escolas = criar_velocimetro(
-    media_escolas, media_distritos, categorias, cores, "Velocidade média das escolas"
+    media_escolas, media_distritos, categorias, cores, "Velocidade média das escolas", theme_colors
 )
 velocimetro_distritos = criar_velocimetro(
-    media_distritos, media_escolas, categorias, cores, "Velocidade média dos distritos"
+    media_distritos, media_escolas, categorias, cores, "Velocidade média dos distritos", theme_colors
 )
 
 # Exibir os velocímetros (proporção 2:3)
@@ -876,68 +832,52 @@ openai_api_key = os.getenv('OPENAI_API_KEY')
 openai.api_key = openai_api_key
 
 # ================== Funções com Cache ======================================================
-
-# ================== Carregar FAQ Particionado ==================
+''' função st.cache_data no Streamlit serve para otimizar o desempenho de aplicativos web e
+armazenando em cache. Isso evita que essas funções sejam executadas repetidamente, 
+economizando tempo e recursos computacionais.'''
+# ================== Carregar FAQ ==================
 @st.cache_data(show_spinner=True)
-def carregar_faq_parte(parte):
-    """Carrega uma parte específica do arquivo Parquet de perguntas e respostas do FAQ."""
-    file_path = f"data/faq_data_part{parte}.parquet"  # Caminho relativo para a parte
-    
+def carregar_faq():
+    """Carrega o arquivo Parquet de perguntas e respostas do FAQ, se existirem."""
+    file_path = "data/faq_data.parquet"  # Caminho relativo
+
     if os.path.exists(file_path):
-        faq_data = pd.read_parquet(file_path)  # Carrega a parte do FAQ
-        
+        faq_data = pd.read_parquet(file_path)  # Mudar para Parquet
+
         # Se a coluna 'embedding' estiver armazenada como string, converter para lista
         if 'embedding' in faq_data.columns:
             faq_data['embedding'] = faq_data['embedding'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
     else:
-        st.error(f"O arquivo FAQ parte {parte} não foi encontrado no caminho: {file_path}")
+        st.error(f"O arquivo FAQ não foi encontrado no caminho: {file_path}")
         faq_data = pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
-    
+
     return faq_data
 
-#-- Função para determinar a parte relevante com base na pergunta
-def determinar_parte(pergunta_usuario):
-    """Determina a parte relevante do FAQ com base no primeiro caractere da pergunta."""
-    primeira_letra = pergunta_usuario[0].lower()
-    if primeira_letra in 'abcdef':
-        return 1
-    elif primeira_letra in 'ghijkl':
-        return 2
-    elif primeira_letra in 'mnopqr':
-        return 3
-    elif primeira_letra in 'stuvwx':
-        return 4
-    else:
-        return 5  # Parte padrão para outras letras
-
-# ================== Carregar Embeddings Particionados ==================
+# ================== Carregar Embeddings ==================
 @st.cache_data(show_spinner=True)
-def carregar_embeddings_parte(parte):
-    """Carrega os embeddings pré-computados de uma parte específica do FAQ."""
+def carregar_embeddings():
+    """Carrega os embeddings pré-computados do FAQ, se existirem."""
     try:
-        with open(f"data/faq_embeddings_part{parte}.json", "r", encoding="utf-8") as f:  # Caminho relativo para a parte
+        with open("data/faq_embeddings.json", "r", encoding="utf-8") as f:  # Caminho relativo
             return json.load(f)
     except FileNotFoundError:
         return None
 
-# ================== Carregar FAISS Index Particionado ==================
+# ================== Carregar FAISS Index ==================
 @st.cache_data(show_spinner=True)
-def carregar_faiss_index_parte(parte):
-    """Carrega o índice FAISS de uma parte específica do FAQ."""
-    caminho = f"data/faq_index_part{parte}.faiss"  # Caminho relativo para a parte
+def carregar_faiss_index(caminho):
+    """Carrega o índice FAISS, se existir."""
     if os.path.exists(caminho):
         index = faiss.read_index(caminho)  # Carrega o índice FAISS
         return index
     else:
         return None
-
 # ================== Gerar Embeddings ==================
 @st.cache_data(show_spinner=True)
 def gerar_embedding(texto):
     """Gera embeddings para um determinado texto usando OpenAI."""
     response = openai.embeddings.create(input=texto, model="text-embedding-3-small")
     return response.data[0].embedding
-
 # ================== Limitar Resposta ==================
 @st.cache_data(show_spinner=True)
 def limitar_resposta(resposta, max_palavras):
@@ -947,13 +887,14 @@ def limitar_resposta(resposta, max_palavras):
 
 # ================== Inicialização do Session State ==================
 if "faq_data" not in st.session_state:
-    st.session_state.faq_data = None  # Será carregado sob demanda
+    st.session_state.faq_data = carregar_faq() # Carrega o FAQ e armazena no session_state
 
 if "faq_embeddings" not in st.session_state:
-    st.session_state.faq_embeddings = None  # Será carregado sob demanda
+    st.session_state.faq_embeddings = carregar_embeddings()
 
 if "faq_index" not in st.session_state:
-    st.session_state.faq_index = None  # Será carregado sob demanda
+    faq_index_path = "data/faq_index.faiss"  # Caminho relativo
+    st.session_state.faq_index = carregar_faiss_index(faq_index_path)
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -964,42 +905,31 @@ if "embedding_cache" not in st.session_state:
 if "resposta_cache" not in st.session_state:
     st.session_state.resposta_cache = {}
 
-# ================== Busca no FAQ por Similaridade ==================
-def buscar_resposta_faq(pergunta_usuario, max_palavras=200, limiar_distancia=0.2):
+# ================== Busca no FAQ com Similaridade ==================
+def buscar_resposta_faq(pergunta_usuario, max_palavras=150, limiar_distancia=0.3):
     """Busca a resposta mais similar no FAQ com base em embeddings.
        Retorna None se a distância for maior que o limiar."""
     if pergunta_usuario in st.session_state.resposta_cache:
         return st.session_state.resposta_cache[pergunta_usuario]
-    
-    #-- Determinar a parte relevante com base na pergunta
-    parte = determinar_parte(pergunta_usuario)
-    
-    #-- Carregar a parte relevante do FAQ, embeddings e índice FAISS
-    st.session_state.faq_data = carregar_faq_parte(parte)
-    st.session_state.faq_embeddings = carregar_embeddings_parte(parte)
-    st.session_state.faq_index = carregar_faiss_index_parte(parte)
-    
-    #-- Gerar embedding para a pergunta do usuário
+
     embedding_pergunta = np.array(gerar_embedding(pergunta_usuario)).reshape(1, -1).astype(np.float32)
     faiss.normalize_L2(embedding_pergunta)  # Normaliza o embedding da pergunta do usuário
-    
-    #-- Buscar no índice FAISS
-    distancias, indices = st.session_state.faq_index.search(embedding_pergunta, k=1)
-    
-    #-- Se a distância for maior que o limiar, não há correspondência adequada no FAQ.
+
+    distancias, indices = st.session_state.faq_index.search(embedding_pergunta, k=1)  # Busca no índice FAISS
+
+    # Se a distância for maior que o limiar, não há correspondência adequada no FAQ.
     if distancias[0][0] > limiar_distancia:
         st.session_state.resposta_cache[pergunta_usuario] = None
         return None
-    
-    #-- Retornar a resposta correspondente
+
     melhor_pergunta = st.session_state.faq_data.iloc[indices[0][0]]['pergunta']
     melhor_resposta = st.session_state.faq_data[st.session_state.faq_data['pergunta'] == melhor_pergunta]['resposta'].values[0]
     resposta_limitada = limitar_resposta(melhor_resposta, max_palavras)
-    
+
     st.session_state.resposta_cache[pergunta_usuario] = resposta_limitada
     return resposta_limitada
 # ================== Busca Híbrida ==================
-def buscar_resposta_hibrida(pergunta_usuario, max_palavras=200):
+def buscar_resposta_hibrida(pergunta_usuario, max_palavras=150):
     """Busca uma resposta híbrida, primeiro no FAQ e depois no GPT-3.5-Turbo."""
     resposta_faq = buscar_resposta_faq(pergunta_usuario, max_palavras)
     if resposta_faq:
@@ -1025,7 +955,7 @@ def buscar_resposta_hibrida(pergunta_usuario, max_palavras=200):
     "- A capacitação de professores e a criação de ambientes digitais interativos são fundamentais para transformar a conectividade em uma ferramenta de aprendizagem eficaz.\n"
     "\n"
     "4. Dados do Painel:\n"
-    "- Para perguntas que envolvem métricas, estatísticas, comparações numéricas e estatíticas ou categorias de velocidade (por exemplo, muito baixa, baixa, média e alta) e informações relacionadas ao IDEB, se esses dados não estiverem disponíveis no FAQ, informe que eles podem ser visualizados no próprio painel.\n"
+    "- Se o usuário fazer perguntas relacionado a métricas, estatísticas, comparações numéricas, categorias de velocidade (como muito baixa, baixa, média e alta) ou informações relacionadas ao IDEB, que não estejam no FAQ, informe que este painel o painel oferece essas informações. Sugira que utilize os filtros e explore os mapas interativos para encontrar esses tipos de dados desejados no dashboard.\n"
     "\n"
     "Utilize essas informações para elaborar respostas que esclareçam os desafios e avanços na conectividade das escolas de São Paulo, considerando tanto os aspectos técnicos quanto as necessidades e inovações na área da educação."
     )
@@ -1041,25 +971,137 @@ def buscar_resposta_hibrida(pergunta_usuario, max_palavras=200):
     
     return limitar_resposta(resposta_gpt.choices[0].message.content, max_palavras)
 
+# ================== CSS Consolidado ==================
+st.markdown(f"""
+<style>
+/* ================== Geral ================== */
+/* Define a aparência geral da aplicação */
+.stApp {{
+    background-color: {theme_colors['plot_bgcolor']} !important;
+    color: {theme_colors['font_color']} !important;
+}}
+
+/* Sidebar */
+[data-testid="stSidebar"] {{
+    background-color: {theme_colors['sidebar_bg']} !important;
+}}
+[data-testid="stSidebar"] * {{
+    color: {theme_colors['font_color']} !important;
+}}
+
+/* Header */
+[data-testid="stHeader"] {{
+    background-color: {theme_colors['header_bg']};
+}}
+
+/* ================== Chat ================== */
+/* Container do chat (sem barra de rolagem) */
+.chat-container {{
+    max-width: 600px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}}
+
+/* Estilo para o label "Digite sua pergunta:" */
+label[for="user_input"],
+div.stTextArea label {{
+    color: {theme_colors['font_color']} !important;
+    font-size: 16px;
+    font-weight: 500;
+}}
+
+/* Caixa de entrada (textarea) */
+div.stTextArea textarea {{
+    background-color: {theme_colors['input_bg']} !important;
+    color: {theme_colors['input_font_color']} !important;
+    border: {theme_colors['input_border']} !important;
+    border-radius: 8px !important;
+    padding: 10px !important;
+    width: 100%;
+}}
+
+/* Botão Enviar */
+div.stButton > button {{
+    background-color: {theme_colors['button_bg']} !important;
+    color: {theme_colors['button_font_color']} !important;
+    border: {theme_colors['button_border']} !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+}}
+
+/* ================== Subtítulo ================== */
+/* Define a aparência do subtítulo abaixo do título */
+.subtitulo {{
+    font-size: 1.25rem;  /* Metade do tamanho do título (2.5rem / 2) */
+    color: #666;         /* Cor mais suave para o subtítulo */
+    margin-top: -15px;   /* Ajusta o espaçamento entre o título e o subtítulo */
+    margin-bottom: 10px; /* Espaçamento abaixo do subtítulo */
+}}
+
+/* ================== Animação de Carregamento ================== */
+/* Estilo do ícone de carregamento */
+.loading {{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 20px;
+    color: #4CAF50;
+    margin: 20px 0;
+}}
+.fa-spinner {{
+    margin-right: 10px;
+    animation: spin 1s linear infinite;
+}}
+@keyframes spin {{
+    0% {{ transform: rotate(0deg); }}
+    100% {{ transform: rotate(360deg); }}
+}}
+
+/* ================== Separadores ================== */
+/* Linha de separação entre mensagens */
+hr {{
+    border: 1px solid {theme_colors['separator_color']} !important;
+}}
+</style>
+""", unsafe_allow_html=True)
+
 # ================== Interface do Chatbot ==================
-st.title("Assistente de análise de dados do painel")
+st.title("🤖Assistente analítico do painel")
+st.markdown('<div class="subtitulo">Este chatbot tem como objetivo fornecer informações e auxiliar na pesquisa sobre infraestrutura digital educacional.</div>', unsafe_allow_html=True)
 
-# Exibir histórico do chat
-for user_message, bot_response in st.session_state.chat_history:
-    st.write(f"**Você:** {user_message}")
-    st.write(f"**Chatbot:** {bot_response}")
-    st.write("---")
-
-# Entrada do usuário
+# Contêiner do chat com barra de rolagem
 with st.container():
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-    user_input = st.text_area("Digite sua pergunta:", key="user_input", height=80)
-    submit_button = st.button("Enviar")
+    for user_message, bot_response in st.session_state.chat_history:
+        st.write(f"**Você:** {user_message}")
+        st.write(f"**Chatbot:** {bot_response}")
+        st.write("---")
     st.markdown('</div>', unsafe_allow_html=True)
+
+# Entrada do usuário
+user_input = st.text_area("Digite sua pergunta:", key="user_input", height=80)
+submit_button = st.button("Enviar")
 
 # Processar a pergunta do usuário
 if submit_button and user_input:
+    # Adiciona a pergunta ao histórico
     st.session_state.chat_history.append((user_input, "Processando..."))
-    resposta = buscar_resposta_hibrida(user_input)
-    st.session_state.chat_history[-1] = (user_input, resposta)
+    
+    # Exibe o ícone de "Carregando..."
+    with st.spinner(""):
+        st.markdown("""
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i> Carregando a resposta...
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Obtém a resposta do chatbot
+        resposta = buscar_resposta_hibrida(user_input)
+        
+        # Atualiza o histórico com a resposta
+        st.session_state.chat_history[-1] = (user_input, resposta)
+    
+    # Recarrega a página para exibir a resposta
     st.rerun()
