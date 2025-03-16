@@ -7,7 +7,7 @@
 - 🏠Hospedar o projeto em um imagem no Docker (caso queira usar diretamente a imagem desenvolvida, acesse: docker pull daniellsantanaa/dashboard-chatbot
 - ⏳Tornar a resposta do chatbot mais rápida (abaixo de 30 segundos)
 
-#===================================== 🤖Fluxo Operacional do Chatbot ===================================#
+#=========== 🤖Fluxo Operacional do Chatbot ===================#
 1. Entrada do Usuário
 Componente: Interface do Chatbot (Streamlit).
 
