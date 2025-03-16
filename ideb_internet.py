@@ -832,9 +832,9 @@ openai_api_key = os.getenv('OPENAI_API_KEY')
 openai.api_key = openai_api_key
 
 # ================== Funções com Cache ======================================================
-''' função st.cache_data no Streamlit serve para otimizar o desempenho de aplicativos web e
-armazenando em cache. Isso evita que essas funções sejam executadas repetidamente, 
-economizando tempo e recursos computacionais.'''
+#''' função st.cache_data no Streamlit serve para otimizar o desempenho de aplicativos web e
+#armazenando em cache. Isso evita que essas funções sejam executadas repetidamente, 
+#economizando tempo e recursos computacionais.'''
 # ================== Carregar FAQ ==================
 @st.cache_data(show_spinner=True)
 def carregar_faq():
@@ -928,6 +928,7 @@ def buscar_resposta_faq(pergunta_usuario, max_palavras=150, limiar_distancia=0.3
 
     st.session_state.resposta_cache[pergunta_usuario] = resposta_limitada
     return resposta_limitada
+
 # ================== Busca Híbrida ==================
 def buscar_resposta_hibrida(pergunta_usuario, max_palavras=150):
     """Busca uma resposta híbrida, primeiro no FAQ e depois no GPT-3.5-Turbo."""
