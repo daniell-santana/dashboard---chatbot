@@ -864,7 +864,7 @@ def carregar_embeddings():
         return None
 
 # ================== Carregar FAISS Index ==================
-@st.cache_data(show_spinner=True)
+@st.cache_resource(show_spinner=True)
 def carregar_faiss_index(caminho):
     """Carrega o índice FAISS, se existir."""
     if os.path.exists(caminho):
