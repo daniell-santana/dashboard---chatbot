@@ -19,11 +19,15 @@ import ast  # Converte strings para objetos Python (útil para embeddings armaze
 st.set_page_config(layout="wide", page_title="Conectividade das Escolas de São Paulo capital")
 
 # Função cacheada para obter as cores do tema
-@st.cache_data
+if "tema" not in st.session_state:
+    st.session_state.tema = "🌙"  # Define o tema padrão como escuro
+
 def get_theme_colors(tema):
-    if tema == "🌙":
-        # Modo Escuro
-        return {
+    """
+    Retorna um dicionário com as cores do tema selecionado.
+    """
+    temas = {
+        "🌙": {
             "plot_bgcolor": "#0e1118",
             "paper_bgcolor": "#0e1118",
             "font_color": "white",
@@ -35,11 +39,11 @@ def get_theme_colors(tema):
             "button_font_color": "white",
             "button_border": "1px solid #fff",
             "separator_color": "#555",
-            "header_bg": "#383838"
-        }
-    else:
-        # Modo Claro
-        return {
+            "header_bg": "#383838",
+            "toggle_bg": "#444",
+            "toggle-slider": "#ffffff"
+        },
+        "☀️": {
             "plot_bgcolor": "#ffffff",
             "paper_bgcolor": "#ffffff",
             "font_color": "#000000",
@@ -51,145 +55,116 @@ def get_theme_colors(tema):
             "button_font_color": "#000000",
             "button_border": "1px solid #000",
             "separator_color": "#ccc",
-            "header_bg": "#fff9f9"
+            "header_bg": "#fff9f9",
+            "toggle_bg": "#ddd",
+            "toggle-slider": "#000000"
         }
+    }
+    return temas[tema]
 
-# --------------------------------------------------------------------
-# TOGGLE SWITCH MODERNO
-# --------------------------------------------------------------------
+# -------------------------------------------------------------
+# TOGGLE SWITCH PARA ALTERAR O TEMA
+# -------------------------------------------------------------
 col1, col2, col3 = st.columns([8, 8, 2])
 with col3:
     tema = st.radio(
-        "", 
-        ["☀️", "🌙"], 
-        index=1, 
-        horizontal=True, 
-        label_visibility="collapsed"  # Esconde o label padrão
+        "", ["☀️", "🌙"], index=(1 if st.session_state.tema == "🌙" else 0), 
+        horizontal=True, label_visibility="collapsed"
     )
+    st.session_state.tema = tema  # Atualiza o estado do tema
 
-    # CSS para estilizar o toggle switch
-    st.markdown(
-        """
-        <style>
-        /* Esconde os radio buttons padrão */
-        div[role=radiogroup] > label > div:first-child {
-            display: none;
-        }
-        /* Estilo do container do toggle (versão horizontal) */
-        div[role=radiogroup] {
-            background-color: #555;
-            border-radius: 20px;
-            padding: 2px;
-            display: inline-flex;
-            gap: 0;
-            position: relative;
-            width: 80px;
-            height: 30px;
-            align-items: center;
-        }
-        /* Estilo dos botões (sol e lua) */
-        div[role=radiogroup] label {
-            margin: 0;
-            padding: 4px 12px;
-            cursor: pointer;
-            z-index: 1;
-            transition: color 0.3s;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 50%;
-        }
-        div[role=radiogroup] label:first-child {
-            padding-left: 4px;
-            justify-content: flex-start;
-        }
-        div[role=radiogroup] label:last-child {
-            padding-right: 4px;
-            justify-content: flex-end;
-        }
-        /* Efeito de slider (parte deslizante) */
-        div[role=radiogroup]:after {
-            content: "";
-            position: absolute;
-            width: 42px;
-            height: 34px;
-            background-color: #4CAF50;
-            top: 3px;
-            left: 3px;
-            border-radius: 16px;
-            transition: transform 0.3s;
-        }
-        input[value="☀️"]:checked ~ div[role=radiogroup]:after {
-            transform: translateX(0);
-        }
-        input[value="🌙"]:checked ~ div[role=radiogroup]:after {
-            transform: translateX(38px);
-        }
-        input:checked + label {
-            color: white !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+# Obtém as cores com base no tema selecionado
+theme_colors = get_theme_colors(st.session_state.tema)
 
-# Obter as cores do tema utilizando a função cacheada
-theme_colors = get_theme_colors(tema)
-
-# --------------------------------------------------------------------
-# INJETAR CSS PARA ATUALIZAR O TOGGLE COM BASE NO TEMA
-# --------------------------------------------------------------------
+# -------------------------------------------------------------
+# APLICAR CSS GLOBALMENTE USANDO VARIÁVEIS CSS
+# -------------------------------------------------------------
 st.markdown(
     f"""
     <style>
-    div[role=radiogroup] {{
-        background-color: {theme_colors['sidebar_bg'] if tema == "🌙" else "#f0f0f0"};
+    :root {{
+        --plot-bgcolor: {theme_colors['plot_bgcolor']};
+        --paper-bgcolor: {theme_colors['paper_bgcolor']};
+        --font-color: {theme_colors['font_color']};
+        --sidebar-bg: {theme_colors['sidebar_bg']};
+        --header-bg: {theme_colors['header_bg']};
+        --toggle-bg: {theme_colors['toggle_bg']};
+        --toggle-slider: {theme_colors['toggle-slider']};
     }}
-    div[role=radiogroup]:after {{
-        background-color: {theme_colors['font_color']};
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# --------------------------------------------------------------------
-# INJETAR CSS PARA ALTERAR O FUNDO DA APLICAÇÃO, SIDEBAR E HEADER
-# --------------------------------------------------------------------
-st.markdown(
-    f"""
-    <style>
     .stApp {{
-        background-color: {theme_colors['plot_bgcolor']} !important;
-        color: {theme_colors['font_color']} !important;
+        background-color: var(--plot-bgcolor) !important;
+        color: var(--font-color) !important;
     }}
     [data-testid="stSidebar"] {{
-        background-color: {theme_colors['sidebar_bg']} !important;
+        background-color: var(--sidebar-bg) !important;
     }}
-    [data-testid="stSidebar"] * {{
-        color: {theme_colors['font_color']} !important;
-    }}
-    .plotly .main-svg {{
-        color: {theme_colors['font_color']} !important;
-        fill: {theme_colors['font_color']} !important;
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-st.markdown(
-    f"""
-    <style>
     [data-testid="stHeader"] {{
-        background-color: {theme_colors['header_bg']};
+        background-color: var(--header-bg) !important;
+    }}
+    /* Esconde os radio buttons padrão */
+    div[role=radiogroup] > label > div:first-child {{
+        display: none;
+    }}
+    /* Estiliza o container do toggle switch */
+    div[role=radiogroup] {{
+        background-color: var(--toggle-bg);
+        border-radius: 20px;
+        padding: 2px;
+        display: inline-flex;
+        position: relative;
+        width: 80px;
+        height: 30px;
+        align-items: center;
+    }}
+    /* Estilo dos botões (sol e lua) */
+    div[role=radiogroup] label {{
+        margin: 0;
+        padding: 4px 12px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 50%;
+        z-index: 1;
+        transition: color 0.3s;
+    }}
+    div[role=radiogroup] label:first-child {{
+        padding-left: 4px;
+        justify-content: flex-start;
+    }}
+    div[role=radiogroup] label:last-child {{
+        padding-right: 4px;
+        justify-content: flex-end;
+    }}
+    /* Efeito de slider (parte deslizante) */
+    div[role=radiogroup]:after {{
+        content: "";
+        position: absolute;
+        width: 42px;
+        height: 34px;
+        background-color: var(--toggle-slider);  /* Cor do slider definida pela variável */
+        top: 3px;
+        left: 3px;
+        border-radius: 16px;
+        transition: transform 0.3s;
+        z-index: 0;
+    }}
+    /* Efeito quando o botão de sol (☀️) é selecionado */
+    input[value="☀️"]:checked ~ div[role=radiogroup]:after {{
+            transform: translateX(0);
+    }}
+    /* Efeito quando o botão de lua (🌙) é selecionado */
+    input[value="🌙"]:checked ~ div[role=radiogroup]:after {{
+            transform: translateX(38px);
+    }}
+    input:checked + label {{
+        color: white !important;
     }}
     </style>
     """,
     unsafe_allow_html=True
 )
-
 
 # Exibir a nota logo abaixo do título com um componente nativo
 st.caption("Nota: Os dados aqui utilizados foram simulados. Não correspondem a realidade")
