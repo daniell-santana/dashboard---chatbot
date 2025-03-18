@@ -1042,14 +1042,17 @@ hr {{
 """, unsafe_allow_html=True)
 
 # ================== Interface do Chatbot ==================
-chat_container = st.container()  # Cria um container específico para o chat
+st.title("🤖 Assistente analítico do painel")
+st.markdown(
+    '<div class="subtitulo">Este chatbot tem como objetivo fornecer informações e auxiliar na pesquisa sobre infraestrutura digital educacional.</div>',
+    unsafe_allow_html=True
+)
 
+# Contêiner que será atualizado apenas com as mensagens do chat
+chat_container = st.container()
+
+# Renderiza as mensagens do chat dentro do container
 with chat_container:
-    st.title("🤖Assistente analítico do painel")
-    st.markdown(
-        '<div class="subtitulo">Este chatbot tem como objetivo fornecer informações e auxiliar na pesquisa sobre infraestrutura digital educacional.</div>',
-        unsafe_allow_html=True
-    )
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     for user_message, bot_response in st.session_state.chat_history:
         st.write(f"**Você:** {user_message}")
@@ -1061,33 +1064,28 @@ with chat_container:
 user_input = st.text_area("Digite sua pergunta:", key="user_input", height=80)
 submit_button = st.button("Enviar")
 
-# Processar a pergunta do usuário
+# Placeholder para o status de carregamento
+status_placeholder = st.empty()
+
 if submit_button and user_input:
     # Adiciona a pergunta ao histórico
     st.session_state.chat_history.append((user_input, "Processando..."))
     
-    # Exibe o ícone de "Carregando..."
-    with st.spinner("Carregando a resposta..."):
-        st.markdown("""
-        <div class="loading">
-            <i class="fas fa-spinner fa-spin"></i> Carregando a resposta...
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Obtém a resposta do chatbot
-        resposta = buscar_resposta_hibrida(user_input)
-        
-        # Atualiza o histórico com a resposta
-        st.session_state.chat_history[-1] = (user_input, resposta)
+    # Atualiza a interface para exibir o "Carregando..."
+    with status_placeholder:
+        with st.spinner("Carregando a resposta..."):
+            # Obtém a resposta do chatbot
+            resposta = buscar_resposta_hibrida(user_input)
     
-    # Atualiza apenas o container do chat
-    chat_container.empty()  # Limpa o container
+    # Atualiza o histórico com a resposta real
+    st.session_state.chat_history[-1] = (user_input, resposta)
+
+    # Limpa o status de carregamento
+    status_placeholder.empty()
+
+    # Atualiza apenas o container do chat, sem repetir o título
+    chat_container.empty()
     with chat_container:
-        st.title("🤖Assistente analítico do painel")
-        st.markdown(
-            '<div class="subtitulo">Este chatbot tem como objetivo fornecer informações e auxiliar na pesquisa sobre infraestrutura digital educacional.</div>',
-            unsafe_allow_html=True
-        )
         st.markdown('<div class="chat-container">', unsafe_allow_html=True)
         for user_message, bot_response in st.session_state.chat_history:
             st.write(f"**Você:** {user_message}")
