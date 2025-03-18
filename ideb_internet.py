@@ -1042,53 +1042,58 @@ hr {{
 """, unsafe_allow_html=True)
 
 # ================== Interface do Chatbot ==================
-st.title("🤖 Assistente analítico do painel")
-st.markdown(
-    '<div class="subtitulo">Este chatbot tem como objetivo fornecer informações e auxiliar na pesquisa sobre infraestrutura digital educacional.</div>',
-    unsafe_allow_html=True
-)
+st.title("🤖Assistente analítico do painel")
+st.markdown('<div class="subtitulo">Este chatbot tem como objetivo fornecer informações e auxiliar na pesquisa sobre infraestrutura digital educacional.</div>', unsafe_allow_html=True)
 
-# Contêiner que será atualizado apenas com as mensagens do chat
-chat_container = st.container()
+'''Este script cria a interface deo chatbot que atualiza apenas o container do chat (para maior responsividade), sem recarregar a página inteira.
+A mágica está no st.session_state (para armazenar o histórico) e no st.empty() (para atualizações dinâmicas).
+Quando o usuário envia uma pergunta, o chat exibe "Processando..." imediatamente e, após a resposta ser gerada, atualiza o conteúdo sem recarregar nada. '''
 
-# Renderiza as mensagens do chat dentro do container
-with chat_container:
-    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-    for user_message, bot_response in st.session_state.chat_history:
-        st.write(f"**Você:** {user_message}")
-        st.write(f"**Chatbot:** {bot_response}")
-        st.write("---")
-    st.markdown('</div>', unsafe_allow_html=True)
+# Inicializa o histórico do chat no session_state
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-# Entrada do usuário
+# Placeholder para o chat (posicionado em cima)
+chat_placeholder = st.empty()
+
+# Entrada do usuário e botão (posicionados abaixo)
 user_input = st.text_area("Digite sua pergunta:", key="user_input", height=80)
 submit_button = st.button("Enviar")
 
-# Placeholder para o status de carregamento
-status_placeholder = st.empty()
-
+# Processar a pergunta do usuário
 if submit_button and user_input:
     # Adiciona a pergunta ao histórico
     st.session_state.chat_history.append((user_input, "Processando..."))
     
-    # Atualiza a interface para exibir o "Carregando..."
-    with status_placeholder:
-        with st.spinner("Carregando a resposta..."):
-            # Obtém a resposta do chatbot
-            resposta = buscar_resposta_hibrida(user_input)
-    
-    # Atualiza o histórico com a resposta real
-    st.session_state.chat_history[-1] = (user_input, resposta)
-
-    # Limpa o status de carregamento
-    status_placeholder.empty()
-
-    # Atualiza apenas o container do chat, sem repetir o título
-    chat_container.empty()
-    with chat_container:
+    # Atualiza o placeholder do chat imediatamente (para mostrar "Processando...")
+    with chat_placeholder.container():
         st.markdown('<div class="chat-container">', unsafe_allow_html=True)
         for user_message, bot_response in st.session_state.chat_history:
             st.write(f"**Você:** {user_message}")
             st.write(f"**Chatbot:** {bot_response}")
             st.write("---")
         st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Simula o processamento da resposta (substitua pelo seu método real)
+    resposta = buscar_resposta_hibrida(user_input)  # Sua função aqui
+    
+    # Atualiza o histórico com a resposta final
+    st.session_state.chat_history[-1] = (user_input, resposta)
+
+    # Atualiza o placeholder do chat novamente (para mostrar a resposta final)
+    with chat_placeholder.container():
+        st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+        for user_message, bot_response in st.session_state.chat_history:
+            st.write(f"**Você:** {user_message}")
+            st.write(f"**Chatbot:** {bot_response}")
+            st.write("---")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# Renderização inicial do chat (fora do bloco de submit)
+with chat_placeholder.container():
+    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+    for user_message, bot_response in st.session_state.chat_history:
+        st.write(f"**Você:** {user_message}")
+        st.write(f"**Chatbot:** {bot_response}")
+        st.write("---")
+    st.markdown('</div>', unsafe_allow_html=True)
