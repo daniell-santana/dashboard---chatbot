@@ -367,15 +367,13 @@ cores = {
     "Alta": 'rgba(31, 119, 180, 0.8)'
 }
 
-# Cálculo das categorias (quartis)
-q1, q2, q3 = np.percentile(escolas['Velocidade_Internet'], [25, 50, 75])
+# categorias (quartis)
 categorias = {
     "Muito Baixa": q1,
     "Baixa": q2,
     "Média": q3,
-    "Alta": 100  # Definimos o limite máximo como 100 Mbps
+    "Alta": 100  # Limite máximo fixo (100 Mbps)
 }
-
 
 # Função para criar o velocímetro (agora recebendo o theme_colors)
 def criar_velocimetro(valor, valor_referencia, categorias, cores, titulo, theme_colors):
@@ -1044,11 +1042,14 @@ hr {{
 """, unsafe_allow_html=True)
 
 # ================== Interface do Chatbot ==================
-st.title("🤖Assistente analítico do painel")
-st.markdown('<div class="subtitulo">Este chatbot tem como objetivo fornecer informações e auxiliar na pesquisa sobre infraestrutura digital educacional.</div>', unsafe_allow_html=True)
+chat_container = st.container()  # Cria um container específico para o chat
 
-# Contêiner do chat com barra de rolagem
-with st.container():
+with chat_container:
+    st.title("🤖Assistente analítico do painel")
+    st.markdown(
+        '<div class="subtitulo">Este chatbot tem como objetivo fornecer informações e auxiliar na pesquisa sobre infraestrutura digital educacional.</div>',
+        unsafe_allow_html=True
+    )
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     for user_message, bot_response in st.session_state.chat_history:
         st.write(f"**Você:** {user_message}")
@@ -1066,7 +1067,7 @@ if submit_button and user_input:
     st.session_state.chat_history.append((user_input, "Processando..."))
     
     # Exibe o ícone de "Carregando..."
-    with st.spinner(""):
+    with st.spinner("Carregando a resposta..."):
         st.markdown("""
         <div class="loading">
             <i class="fas fa-spinner fa-spin"></i> Carregando a resposta...
@@ -1079,5 +1080,17 @@ if submit_button and user_input:
         # Atualiza o histórico com a resposta
         st.session_state.chat_history[-1] = (user_input, resposta)
     
-    # Recarrega a página para exibir a resposta
-    st.rerun()
+    # Atualiza apenas o container do chat
+    chat_container.empty()  # Limpa o container
+    with chat_container:
+        st.title("🤖Assistente analítico do painel")
+        st.markdown(
+            '<div class="subtitulo">Este chatbot tem como objetivo fornecer informações e auxiliar na pesquisa sobre infraestrutura digital educacional.</div>',
+            unsafe_allow_html=True
+        )
+        st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+        for user_message, bot_response in st.session_state.chat_history:
+            st.write(f"**Você:** {user_message}")
+            st.write(f"**Chatbot:** {bot_response}")
+            st.write("---")
+        st.markdown('</div>', unsafe_allow_html=True)
