@@ -1,73 +1,107 @@
-⚠️Dicas de melhorias⚠️:
-- 🔃Transforme o arquivo .csv em .parquet
-- 🔪Particione os arquivos "faq_", com as seguintes ressalvas:
-    - Se o FAQ for particionado de forma inadequada (por exemplo, com base em critérios que não refletem
-      a semelhança semântica entre as perguntas), perguntas semelhantes podem acabar em partes diferentes.
-    - Isso pode fazer com que o sistema não encontre a pergunta mais similar no FAQ, resultando em respostas incorretas.
-- 🏠Hospedar o projeto em um imagem no Docker (caso queira usar diretamente a imagem desenvolvida, acesse: docker pull daniellsantanaa/dashboard-chatbot
-- ⏳Tornar a resposta do chatbot mais rápida (abaixo de 30 segundos)
+[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=Streamlit&logoColor=white)](https://dashboard-chatbot-v2-887647441176.southamerica-east1.run.app)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/r/daniellsantanaa/dashboard-chatbot)
+[![OpenAI](https://img.shields.io/badge/GPT-3.5_Turbo-412991?style=for-the-badge&logo=openai&logoColor=white)](https://platform.openai.com/docs/models/gpt-3.5-turbo)
 
-#=========== 🤖Fluxo Operacional do Chatbot ===================#
-1. Entrada do Usuário
-Componente: Interface do Chatbot (Streamlit).
+# 🌐 Dashboard Interativo de Conectividade Escolar com Chatbot Analítico
 
-Descrição: O usuário digita uma pergunta no campo de entrada do chatbot.
+Um dashboard completo para análise da infraestrutura digital nas escolas de São Paulo, combinando visualização de dados avançada com um chatbot especializado em educação digital.
 
-Fluxo:
-- O texto da pergunta é enviado para o backend do chatbot.
-#=================================================
+## 🚀 Acesso Online
+**Aplicação Publicada:**  
+https://dashboard-chatbot-v2-887647441176.southamerica-east1.run.app
 
-2. Processamento da Pergunta
-Componente: Backend do Chatbot (Python + Streamlit).
+## ✨ Principais Funcionalidades
 
-Descrição: A pergunta do usuário é processada para determinar a melhor resposta.
+### 🗺️ Visualização Geográfica Avançada
+- **Mapa de Escolas**: Visualização interativa com marcadores dimensionados por velocidade de internet
+- **Mapa de Distritos**: Heatmap por desempenho médio com tooltips informativos
+- **Sistema de Camadas**: Ative/desative categorias de velocidade (Muito Baixa, Baixa, Média, Alta)
+- **Tema Adaptável**: Alternância entre modo claro e escuro
 
-Fluxo:
-- A pergunta é convertida em um embedding usando um modelo da OpenAI (text-embedding-3-small).
-- O embedding é normalizado para garantir consistência na busca de similaridade.
-#=================================================
+### 📊 Análise de Dados Integrada
+- **Velocímetros Comparativos**: Média das escolas vs média dos distritos
+- **Gráfico de Dispersão**: Relação entre IDEB e velocidade de internet
+- **Filtros Dinâmicos**: Conexão entre todos os widgets de seleção
+- **Tabela Interativa**: Ranking de distritos com barra de progresso
 
-3. Busca no FAQ (Resposta Baseada em Dados)
-Componente: FAQ Particionado + FAISS.
+### 🤖 Chatbot com RAG Especializado
+- **FAQ Estruturado**: Base de conhecimento sobre infraestrutura escolar
+- **Busca Semântica**: Encontra perguntas similares usando embeddings
+- **Respostas Híbridas**: Combina FAQ com GPT-3.5 para cobertura completa
+- **Contexto Educacional**: Especializado em conectividade e IDEB
 
-Descrição: O chatbot tenta encontrar uma resposta no FAQ usando similaridade de embeddings.
+## 💡 Como Utilizar
 
-Fluxo:
-- O embedding da pergunta é comparado com os embeddings das perguntas do FAQ usando o índice FAISS.
-- Se a distância entre os embeddings for menor que um limiar pré-definido (ex: 0.3), a resposta correspondente é retornada.
-- Caso contrário, o chatbot prossegue para gerar uma resposta híbrida.
-#=================================================
+### 1. Explorando os Dados
+- Use os filtros na barra lateral para selecionar:
+  - Faixa de velocidade (1-100Mbps)
+  - Categorias de conectividade
+  - Regiões (DRE, Subprefeitura, Distrito)
+  - Tipo de escola e bairros
 
-4. Resposta Híbrida (FAQ + GPT-3.5)
-Componente: OpenAI GPT-3.5
+### 2. Interação com Visualizações
+- **Clique nos marcadores** para ver detalhes das escolas
+- **Passe o mouse** nos distritos para métricas regionais
+- **Compare velocímetros** para análise relacional
 
-Descrição: Se a pergunta não for encontrada no FAQ, o chatbot usa o GPT-3.5 para gerar uma resposta criativa.
+### 3. Consultando o Chatbot
+Exemplos de perguntas:
+- "Quais escolas na zona leste têm internet abaixo de 10Mbps?"
+- "Como a velocidade da internet se relaciona com o IDEB?"
+- "Mostre distritos com melhor infraestrutura digital"
+- "Quais políticas públicas existem para melhorar a conectividade?"
 
-Fluxo:
-- O chatbot envia a pergunta do usuário para o GPT-3.5, junto com um contexto personalizado (ex: "Você é um assistente educacional...").
-- O GPT-3.5 gera uma resposta, que é então limitada a um número máximo de palavras e retornada ao usuário.
-#=================================================
 
-5. Resposta Final
-Componente: Interface do Chatbot (Streamlit).
+## ⚙️ Arquitetura e Fluxo Operacional
 
-Descrição: A resposta (seja do FAQ ou do GPT-3.5) é exibida para o usuário.
+### 🔄 Fluxo do Chatbot (RAG + GPT-3.5)
+```mermaid
+sequenceDiagram
+    participant U as Usuário
+    participant F as FAQ (FAISS)
+    participant G as GPT-3.5
+    participant D as Dashboard
+    
+    U->>D: Pergunta sobre dados
+    D->>F: Busca por similaridade
+    alt Pergunta no FAQ
+        F-->>D: Resposta direta
+    else Pergunta complexa
+        D->>G: Consulta contextualizada
+        G-->>D: Resposta gerada
+    end
+    D->>U: Resposta final + visualizações
+OBS: A pergunta é convertida em vetor usando text-embedding-3-small
+```
+---
+## 🛠️ Melhorias Técnicas Implementadas
 
-Fluxo:
-- A resposta é formatada e exibida na interface do chatbot.
-- A conversa é armazenada no histórico (chat_history) para referência futura.
-#=================================================
+### ⚡ Otimizações de Performance
+- **Cache de Embeddings**: Evita reprocessamento de perguntas similares  
+  → *Reduz chamadas redundantes à API da OpenAI*
+- **Particionamento do FAQ**: Agrupamento por tópicos para buscas eficientes  
+  → *Organização semântica usando FAISS*
+- **Streamlit Cache**: Armazenamento local de dados processados  
+  → `@st.cache_data` para datasets e `@st.cache_resource` para modelos
 
-6. Infraestrutura (Docker + Google Cloud Run)
-Componente: Docker + Google Cloud Run.
+graph LR
+    A[Visualização Temporal] --> B[Linha do tempo]
+    A --> C[Heatmap evolutivo]
+    D[Comparação Redes] --> E[Pública vs Privada]
 
-Descrição: O chatbot é empacotado em um contêiner Docker e implantado no Google Cloud Run para escalabilidade e disponibilidade.
+## 🔧 Sugestões de Melhorias Futuras
+### 🚀 Performance
+- Converter CSV para Parquet (reduzir tempo de carga em ~40%)
+- Implementar pré-computação de agregados estatísticos
+- Adicionar cache distribuído para embeddings
 
-Fluxo:
-- O código do chatbot é empacotado em uma imagem Docker.
-- A imagem é enviada para o Google Container Registry.
-- O Google Cloud Run implanta a imagem e gerencia a execução do chatbot em um ambiente escalável.
-
+### 📊 Análise de Dados
+- Incluir visualização temporal da evolução da conectividade
+- Adicionar comparação entre redes pública e privada
+### 🤖 Chatbot
+- Adicionar capacidade de gerar visualizações sob demanda
+- Implementar feedback para aprimoramento contínuo do FAQ
+- Adicionar exemplos de perguntas na interface
 
 
 
