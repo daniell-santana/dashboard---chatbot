@@ -63,6 +63,7 @@ sequenceDiagram
     participant D as Dashboard
     
     U->>D: Pergunta sobre dados
+    Note right of D: A pergunta é convertida<br>em vetor usando text-embedding-3-small
     D->>F: Busca por similaridade
     alt Pergunta no FAQ
         F-->>D: Resposta direta
@@ -71,7 +72,6 @@ sequenceDiagram
         G-->>D: Resposta gerada
     end
     D->>U: Resposta final + visualizações
-OBS: A pergunta é convertida em vetor usando text-embedding-3-small
 ```
 ---
 ## 🛠️ Melhorias Técnicas Implementadas
@@ -84,10 +84,10 @@ OBS: A pergunta é convertida em vetor usando text-embedding-3-small
 - **Streamlit Cache**: Armazenamento local de dados processados  
   → `@st.cache_data` para datasets e `@st.cache_resource` para modelos
 
-graph LR
-    A[Visualização Temporal] --> B[Linha do tempo]
-    A --> C[Heatmap evolutivo]
-    D[Comparação Redes] --> E[Pública vs Privada]
+| Função Principal       | Sub-elementos               |
+|------------------------|-----------------------------|
+| Visualização Temporal  | • Linha do tempo<br>• Heatmap evolutivo |
+| Comparação de Redes    | • Pública vs Privada        |
 
 ## 🔧 Sugestões de Melhorias Futuras
 ### 🚀 Performance
