@@ -9,3 +9,4 @@ plotly
 openai
 python-dotenv
 requests
+faiss-cpu
