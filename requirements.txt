@@ -8,3 +8,4 @@ branca
 plotly
 openai
 python-dotenv
+requests
