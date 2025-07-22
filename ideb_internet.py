@@ -14,6 +14,8 @@ import json  # Manipulação de dados no formato JSON.
 import os  # Interação com o sistema operacional (leitura de arquivos, variáveis de ambiente, etc.).
 from dotenv import load_dotenv  # Carrega variáveis de ambiente de um arquivo .env.
 import ast  # Converte strings para objetos Python (útil para embeddings armazenados como strings).
+import requests
+from io import StringIO
 
 # Configurar o layout da página
 st.set_page_config(layout="wide", page_title="Conectividade das Escolas de São Paulo capital")
@@ -178,13 +180,28 @@ st.caption("Nota: Os dados aqui utilizados foram simulados. Não correspondem a 
 def load_escolas():
     url = ("http://dados.prefeitura.sp.gov.br/dataset/8da55b0e-b385-4b54-9296-d0000014ddd5/"
            "resource/533188c6-1949-4976-ac4e-acd313415cd1/download/escolas122024.csv")
-    df = pd.read_csv(url, sep=";", encoding="ISO-8859-1", on_bad_lines='skip')
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/114.0.0.0 Safari/537.36"
+    }
+    
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()  # Caso haja erro HTTP, lança exceção
+    
+    # Lê o CSV diretamente do conteúdo da resposta
+    df = pd.read_csv(StringIO(response.text), sep=";", encoding="ISO-8859-1", on_bad_lines='skip')
     df.columns = df.columns.str.strip()
+    
+    # Ajustes adicionais que você já tinha
     df['LATITUDE'] /= 1_000_000
     df['LONGITUDE'] /= 1_000_000
+    
     np.random.seed(42)
     df['IDEB'] = np.random.uniform(3.0, 7.0, len(df))
     df['Velocidade_Internet'] = np.random.uniform(1.0, 100.0, len(df))
+    
     return df
 
 @st.cache_data
