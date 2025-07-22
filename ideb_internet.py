@@ -178,7 +178,7 @@ st.caption("Nota: Os dados aqui utilizados foram simulados. Não correspondem a 
 def load_escolas():
     url = ("http://dados.prefeitura.sp.gov.br/dataset/8da55b0e-b385-4b54-9296-d0000014ddd5/"
            "resource/533188c6-1949-4976-ac4e-acd313415cd1/download/escolas122024.csv")
-    df = pd.read_csv(url, sep=";", encoding="ISO-8859-1")
+    df = pd.read_csv(url, sep=";", encoding="ISO-8859-1", on_bad_lines='skip')
     df.columns = df.columns.str.strip()
     df['LATITUDE'] /= 1_000_000
     df['LONGITUDE'] /= 1_000_000
